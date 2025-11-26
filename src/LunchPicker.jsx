@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Compass, Filter, List, MapPin, Play, Loader, ChevronUp, AlertCircle, Home, ChefHat, User, Plus, Trash2, History, Users, TrendingUp, X } from 'lucide-react';
 import Toast from './components/Toast';
@@ -13,11 +13,8 @@ import {
   collection, 
   doc,
   setDoc,
-  getDoc,
   deleteDoc,
   addDoc,
-  query,
-  where,
   onSnapshot,
   serverTimestamp,
   Timestamp,
@@ -119,7 +116,6 @@ export default function LunchPicker() {
   // 餐廳資料（從 Firebase 載入）
   const [currentRestaurants, setCurrentRestaurants] = useState([]);
   const [filters, setFilters] = useState({ price: "", distance: 500 });
-  const [selectedCategory, setSelectedCategory] = useState('all');
   
   // 輪盤相關
   const canvasRef = useRef(null);
@@ -135,8 +131,11 @@ export default function LunchPicker() {
   const [todayStats, setTodayStats] = useState({});
   
   // 漂浮視窗狀態
-  const [showFloatingStats, setShowFloatingStats] = useState(false);
   const [isFloatingMinimized, setIsFloatingMinimized] = useState(false);
+  
+  // 地圖狀態管理
+  const [openMaps, setOpenMaps] = useState({}); // { restaurantId: boolean }
+  const [winnerMapOpen, setWinnerMapOpen] = useState(false);
   
   // 新增餐廳表單
   const [newRestaurant, setNewRestaurant] = useState({
@@ -304,6 +303,20 @@ export default function LunchPicker() {
   const formatDistance = (distance) => {
     if (distance >= 1000) return `${(distance / 1000).toFixed(1)}km`;
     return `${distance}m`;
+  };
+
+  // 切換地圖顯示狀態
+  const toggleMap = (restaurantId) => {
+    setOpenMaps(prev => ({
+      ...prev,
+      [restaurantId]: !prev[restaurantId]
+    }));
+  };
+
+  // 建立 Google Maps URL
+  const getMapUrl = (restaurantName, address) => {
+    const query = `${restaurantName}, ${address}`;
+    return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&t=m&output=embed`;
   };
 
   // 篩選餐廳
@@ -992,6 +1005,30 @@ export default function LunchPicker() {
                   <p className="text-lg font-bold text-slate-500 uppercase tracking-wider">Decision Made</p>
                   <p className="text-3xl sm:text-4xl font-extrabold text-blue-600 animate-pulse mt-1">{winningRestaurant.name}</p>
                   <p className="text-sm text-slate-500 mt-1">{winningRestaurant.address}</p>
+                  
+                  {/* 地圖按鈕 */}
+                  <button
+                    onClick={() => setWinnerMapOpen(!winnerMapOpen)}
+                    className="flex items-center justify-center text-white bg-blue-600 border border-blue-700 hover:bg-blue-700 py-2 px-5 rounded-lg transition duration-150 mt-4 shadow-md text-sm font-bold"
+                  >
+                    <span className="mr-1">{winnerMapOpen ? '隱藏地圖' : '查看地圖'}</span>
+                    <MapPin className="w-4 h-4" />
+                  </button>
+                  
+                  {/* 地圖容器 */}
+                  {winnerMapOpen && (
+                    <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '200px' }}>
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={getMapUrl(winningRestaurant.name, winningRestaurant.address)}
+                      />
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -1048,8 +1085,30 @@ export default function LunchPicker() {
                           {formatDistance(restaurant.distance)}
                         </span>
                       </div>
+                      <button
+                        onClick={() => toggleMap(restaurant.id)}
+                        className="flex items-center justify-center text-blue-600 bg-white border border-blue-200 hover:bg-blue-50 py-1.5 px-3 rounded-md transition duration-150 shadow-sm group"
+                      >
+                        <span className="text-xs font-bold mr-1">{openMaps[restaurant.id] ? 'HIDE' : 'MAP'}</span>
+                        <MapPin className="w-3 h-3 text-blue-600 group-hover:text-blue-700" />
+                      </button>
                     </div>
                   </div>
+                  
+                  {/* 地圖容器 */}
+                  {openMaps[restaurant.id] && (
+                    <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '200px' }}>
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={getMapUrl(restaurant.name, restaurant.address)}
+                      />
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -1074,22 +1133,49 @@ export default function LunchPicker() {
             
             <div className="space-y-3">
               {currentRestaurants.map(restaurant => (
-                <div key={restaurant.firebaseId} className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm flex justify-between items-center">
-                  <div>
-                    <p className="font-bold text-lg text-slate-800">{restaurant.name}</p>
-                    <p className="text-sm text-slate-500">{restaurant.address}</p>
-                    <div className="flex gap-2 mt-2 text-xs">
-                      <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">{restaurant.price}</span>
-                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded">{formatDistance(restaurant.distance)}</span>
-                      <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">{restaurant.timeStart} - {restaurant.timeEnd}</span>
+                <div key={restaurant.firebaseId} className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="font-bold text-lg text-slate-800">{restaurant.name}</p>
+                      <p className="text-sm text-slate-500">{restaurant.address}</p>
+                      <div className="flex gap-2 mt-2 text-xs">
+                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">{restaurant.price}</span>
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded">{formatDistance(restaurant.distance)}</span>
+                        <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">{restaurant.timeStart} - {restaurant.timeEnd}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => toggleMap(restaurant.firebaseId)}
+                        className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition"
+                        title="查看地圖"
+                      >
+                        <MapPin className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRestaurant(restaurant.firebaseId)}
+                        className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition"
+                        title="刪除餐廳"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteRestaurant(restaurant.firebaseId)}
-                    className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  
+                  {/* 地圖容器 */}
+                  {openMaps[restaurant.firebaseId] && (
+                    <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '250px' }}>
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={getMapUrl(restaurant.name, restaurant.address)}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1111,17 +1197,41 @@ export default function LunchPicker() {
                 {myHistory.map(record => (
                   <div key={record.id} className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm">
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <p className="font-bold text-lg text-blue-600">{record.restaurantName}</p>
                         <p className="text-sm text-slate-500">{record.restaurant?.address}</p>
                         <p className="text-xs text-slate-400 mt-2">
                           {record.timestamp?.toDate ? new Date(record.timestamp.toDate()).toLocaleString('zh-TW') : record.date}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="flex flex-col items-end gap-2">
                         <span className="text-sm font-bold text-slate-600">{record.restaurant?.price}</span>
+                        {record.restaurant?.address && (
+                          <button
+                            onClick={() => toggleMap(record.id)}
+                            className="text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition"
+                            title="查看地圖"
+                          >
+                            <MapPin className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
+                    
+                    {/* 地圖容器 */}
+                    {openMaps[record.id] && record.restaurant?.address && (
+                      <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '200px' }}>
+                        <iframe
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          loading="lazy"
+                          allowFullScreen
+                          referrerPolicy="no-referrer-when-downgrade"
+                          src={getMapUrl(record.restaurantName, record.restaurant.address)}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
