@@ -14,7 +14,11 @@ import {
   serverTimestamp, 
   doc, 
   updateDoc,
-  setDoc
+  setDoc,
+  deleteDoc,
+  query,
+  where,
+  Timestamp
 } from 'firebase/firestore';
 import { 
   Utensils, 
@@ -28,7 +32,10 @@ import {
   Loader2,
   X,
   Soup,
-  Home
+  Home,
+  Trash2,
+  Edit,
+  Calendar
 } from 'lucide-react';
 import Toast from './components/Toast';
 
@@ -149,7 +156,14 @@ export default function LuweiOrderingApp() {
     酸菜: true,
     辣椒: '微', 
   });
-  const [selectedFreeNoodle, setSelectedFreeNoodle] = useState(null); 
+  const [selectedFreeNoodle, setSelectedFreeNoodle] = useState(null);
+  
+  // 管理員日期篩選
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // 編輯訂單狀態
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false); 
   
   // Data State
   const [orders, setOrders] = useState([]);
@@ -347,6 +361,97 @@ export default function LuweiOrderingApp() {
     }
   };
 
+  const deleteOrder = async (orderId) => {
+    if (!window.confirm('確定要刪除這筆訂單嗎？')) return;
+    
+    try {
+      const ref = doc(db, 'artifacts', appId, 'public', 'data', 'orders', orderId);
+      await deleteDoc(ref);
+      setToast({ message: "✅ 訂單已刪除", type: "success" });
+    } catch (err) {
+      console.error("Error deleting order:", err);
+      setToast({ message: "❌ 刪除失敗，請重試", type: "error" });
+    }
+  };
+
+  const startEditOrder = (order) => {
+    const newCart = {};
+    order.items.forEach(item => {
+      if (!item.name.includes('贈送') && item.price !== 0) {
+        newCart[item.id] = item.count;
+      }
+    });
+    setCart(newCart);
+    setEditingOrder(order);
+    
+    // 還原調味選項
+    if (order.condiments) {
+      setCondimentOptions({
+        蔥: order.condiments.蔥 === '加',
+        蒜: order.condiments.蒜 === '加',
+        酸菜: order.condiments.酸菜 === '加',
+        辣椒: order.condiments.辣椒,
+      });
+    }
+    
+    setShowEditModal(true);
+  };
+
+  const handleUpdateOrder = async () => {
+    if (!editingOrder || !user) return;
+    
+    const orderItems = Object.entries(cart).map(([id, qty]) => {
+      const item = menu.find(i => i.id === id);
+      return { 
+        name: item.name, 
+        price: item.price, 
+        count: qty,
+        id: id
+      };
+    });
+
+    const newTotal = calculateTotal(cart);
+    const isFreeNoodleEligible = newTotal >= FREE_NOODLE_THRESHOLD;
+
+    if (isFreeNoodleEligible && selectedFreeNoodle) {
+      const freeNoodle = FREE_NOODLE_CHOICES.find(n => n.id === selectedFreeNoodle);
+      orderItems.push({
+        name: `🎁 贈送: ${freeNoodle?.name || '主食麵'}`,
+        price: 0,
+        count: 1,
+        id: selectedFreeNoodle
+      });
+    }
+
+    try {
+      const ref = doc(db, 'artifacts', appId, 'public', 'data', 'orders', editingOrder.id);
+      await updateDoc(ref, {
+        items: orderItems,
+        total: newTotal,
+        condiments: {
+          ...condimentOptions,
+          蔥: condimentOptions['蔥'] ? '加' : '不加',
+          蒜: condimentOptions['蒜'] ? '加' : '不加',
+          酸菜: condimentOptions['酸菜'] ? '加' : '不加',
+          辣椒: condimentOptions['辣椒'],
+        },
+        updatedAt: serverTimestamp()
+      });
+      
+      setCart({});
+      setShowEditModal(false);
+      setEditingOrder(null);
+      setSelectedFreeNoodle(null);
+      setCondimentOptions({ 蔥: true, 蒜: true, 酸菜: true, 辣椒: '微' });
+      
+      setToast({ message: "✅ 訂單已更新！", type: "success" });
+      setView('history');
+    } catch (err) {
+      console.error(err);
+      setToast({ message: "❌ 更新失敗，請重試", type: "error" });
+    }
+  };
+
   const reOrder = (oldItems) => {
     const newCart = {};
     oldItems.forEach(item => {
@@ -416,10 +521,10 @@ export default function LuweiOrderingApp() {
   const AdminOrderCard = ({ order }) => (
     <div key={order.id} className={`border rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${order.isPaid ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
         <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="font-bold text-lg text-gray-800">{order.userName}</span>
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-                    {order.timestamp?.toDate ? new Date(order.timestamp.toDate()).toLocaleTimeString() : '剛剛'}
+                    {order.timestamp?.toDate ? new Date(order.timestamp.toDate()).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '剛剛'}
                 </span>
                 {order.isPaid && <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full font-bold">已付款</span>}
             </div>
@@ -443,18 +548,146 @@ export default function LuweiOrderingApp() {
             </div>
         </div>
         
-        <button
-            onClick={() => togglePaymentStatus(order.id, order.isPaid)}
-            className={`px-6 py-3 rounded-lg font-bold shadow-sm transition w-full md:w-auto ${
-                order.isPaid 
-                    ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' 
-                    : 'bg-green-600 text-white hover:bg-green-700'
-            }`}
-        >
-            {order.isPaid ? '設為未付' : '確認收款'}
-        </button>
+        <div className="flex gap-2 w-full md:w-auto">
+            <button
+                onClick={() => togglePaymentStatus(order.id, order.isPaid)}
+                className={`flex-1 md:flex-initial px-6 py-3 rounded-lg font-bold shadow-sm transition ${
+                    order.isPaid 
+                        ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' 
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+            >
+                {order.isPaid ? '設為未付' : '確認收款'}
+            </button>
+            <button
+                onClick={() => deleteOrder(order.id)}
+                className="px-4 py-3 rounded-lg font-bold shadow-sm transition bg-red-600 text-white hover:bg-red-700"
+                title="刪除訂單"
+            >
+                <Trash2 className="w-5 h-5" />
+            </button>
+        </div>
     </div>
   );
+
+  const EditOrderModal = () => {
+    const freeNoodle = FREE_NOODLE_CHOICES.find(n => n.id === selectedFreeNoodle);
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg animate-in zoom-in-95 duration-300">
+          <div className="p-6 border-b flex justify-between items-center">
+            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <Edit className="w-6 h-6 text-blue-600" />
+                修改訂單
+            </h3>
+            <button onClick={() => {
+              setShowEditModal(false);
+              setEditingOrder(null);
+              setCart({});
+            }} className="text-gray-400 hover:text-gray-600">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+            <div>
+              <h4 className="font-bold text-lg text-amber-700 mb-3 border-b pb-1">調味/配料選項</h4>
+              
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">是否添加以下配料？</p>
+                <div className="flex flex-wrap gap-3">
+                  {['蔥', '蒜', '酸菜'].map(topping => (
+                    <button
+                      key={topping}
+                      onClick={() => setCondimentOptions(p => ({ ...p, [topping]: !p[topping] }))}
+                      className={`px-4 py-2 rounded-full font-bold transition flex items-center gap-2 ${
+                        condimentOptions[topping] 
+                          ? 'bg-green-500 text-white shadow-md' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {topping} {condimentOptions[topping] ? '✅' : '❌'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">辣椒等級：</p>
+                <div className="flex flex-wrap gap-2">
+                  {CHILI_LEVELS.map(level => (
+                    <button
+                      key={level}
+                      onClick={() => setCondimentOptions(p => ({ ...p, 辣椒: level }))}
+                      className={`px-4 py-2 rounded-lg font-bold transition ${
+                        condimentOptions.辣椒 === level 
+                          ? 'bg-red-600 text-white shadow-md' 
+                          : 'bg-red-50 text-red-700 hover:bg-red-100'
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {currentTotal >= FREE_NOODLE_THRESHOLD && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-bold text-lg text-yellow-800 mb-3 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5" />
+                    滿 ${FREE_NOODLE_THRESHOLD}，請選擇贈送的主食：
+                </h4>
+                <div className="flex flex-wrap gap-3">
+                  {FREE_NOODLE_CHOICES.map(noodle => (
+                    <button
+                      key={noodle.id}
+                      onClick={() => setSelectedFreeNoodle(noodle.id)}
+                      className={`px-4 py-2 rounded-lg font-bold transition ${
+                        selectedFreeNoodle === noodle.id 
+                          ? 'bg-amber-600 text-white shadow-md' 
+                          : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                      }`}
+                    >
+                      {noodle.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-bold text-lg mb-2">訂單內容</h4>
+                <div className="space-y-1 text-sm text-gray-600 max-h-32 overflow-y-auto">
+                    {Object.entries(cart).map(([id, qty]) => {
+                        const item = menu.find(i => i.id === id);
+                        return item ? (
+                            <div key={id} className="flex justify-between">
+                                <span>{item.name} x{qty}</span>
+                                <span>${item.price * qty}</span>
+                            </div>
+                        ) : null;
+                    })}
+                </div>
+                <div className="mt-3 pt-2 border-t border-gray-200 flex justify-between items-center">
+                    <span className="text-xl font-bold">總金額:</span>
+                    <span className="text-2xl font-bold text-red-600">${currentTotal}</span>
+                </div>
+            </div>
+          </div>
+
+          <div className="p-6 border-t">
+            <button
+              onClick={handleUpdateOrder}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-xl transition shadow-lg hover:bg-blue-700 active:scale-95"
+            >
+              確認更新訂單
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const SubmitModal = () => {
     const freeNoodle = FREE_NOODLE_CHOICES.find(n => n.id === selectedFreeNoodle);
@@ -641,17 +874,41 @@ export default function LuweiOrderingApp() {
 
         <main className="max-w-4xl mx-auto p-4 space-y-4">
           <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <ListRestart className="w-5 h-5 text-blue-600" />
-              即時訂單列表
-            </h2>
-            {orders.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">目前還沒有訂單喔，快去攬客！</p>
-            ) : (
-              <div className="space-y-4">
-                {orders.map((order) => <AdminOrderCard key={order.id} order={order} />)}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <ListRestart className="w-5 h-5 text-blue-600" />
+                訂單列表
+              </h2>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-gray-600" />
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
               </div>
-            )}
+            </div>
+            {(() => {
+              const filteredOrders = orders.filter(order => {
+                if (!order.timestamp?.toDate) return true;
+                const orderDate = new Date(order.timestamp.toDate()).toISOString().split('T')[0];
+                return orderDate === selectedDate;
+              });
+              
+              return filteredOrders.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">
+                  {selectedDate === new Date().toISOString().split('T')[0] 
+                    ? '目前還沒有訂單喔，快去攬客！' 
+                    : '這天沒有訂單記錄'}
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">共 {filteredOrders.length} 筆訂單</p>
+                  {filteredOrders.map((order) => <AdminOrderCard key={order.id} order={order} />)}
+                </div>
+              );
+            })()}
           </div>
         </main>
       </div>
@@ -669,6 +926,7 @@ export default function LuweiOrderingApp() {
       )}
       
       {showSubmitModal && <SubmitModal />}
+      {showEditModal && <EditOrderModal />}
       
       <header className="bg-amber-700 text-white p-4 shadow-lg sticky top-0 z-20">
         <div className="max-w-2xl mx-auto flex justify-between items-center">
@@ -754,13 +1012,29 @@ export default function LuweiOrderingApp() {
                     )}
                   </div>
 
-                  <button 
-                    onClick={() => reOrder(order.items)}
-                    className="w-full bg-amber-50 text-amber-700 py-2 rounded-lg font-bold border border-amber-200 hover:bg-amber-100 transition flex items-center justify-center gap-2"
-                  >
-                    <ListRestart className="w-4 h-4" />
-                    再來一模一樣的
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => reOrder(order.items)}
+                      className="flex-1 bg-amber-50 text-amber-700 py-2 rounded-lg font-bold border border-amber-200 hover:bg-amber-100 transition flex items-center justify-center gap-2"
+                    >
+                      <ListRestart className="w-4 h-4" />
+                      再來一次
+                    </button>
+                    <button 
+                      onClick={() => startEditOrder(order)}
+                      className="px-4 bg-blue-50 text-blue-700 py-2 rounded-lg font-bold border border-blue-200 hover:bg-blue-100 transition flex items-center justify-center"
+                      title="修改訂單"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => deleteOrder(order.id)}
+                      className="px-4 bg-red-50 text-red-700 py-2 rounded-lg font-bold border border-red-200 hover:bg-red-100 transition flex items-center justify-center"
+                      title="刪除訂單"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -809,6 +1083,51 @@ export default function LuweiOrderingApp() {
               ))}
             </div>
 
+            {/* 浮動購物車（桌面版左上角） */}
+            {Object.keys(cart).length > 0 && (
+              <div className="hidden lg:block fixed top-20 left-4 z-30 w-80">
+                <div className="bg-white rounded-xl p-4 shadow-2xl border-2 border-amber-300">
+                  <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-amber-700 border-b border-amber-200 pb-2">
+                    <ShoppingCart className="w-5 h-5" />
+                    購物車
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="max-h-[400px] overflow-y-auto space-y-2">
+                      {Object.entries(cart).map(([id, qty]) => {
+                        const item = menu.find(i => i.id === id);
+                        if (!item) return null;
+                        return (
+                          <div key={id} className="flex justify-between items-center text-sm bg-amber-50 p-2 rounded">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800">{item.name}</p>
+                              <p className="text-xs text-gray-500">x{qty}</p>
+                            </div>
+                            <span className="font-bold text-amber-700">${item.price * qty}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="border-t border-amber-200 pt-3 mt-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-gray-600">小計</span>
+                        <span className="text-xl font-bold text-gray-900">${currentTotal}</span>
+                      </div>
+                      {isFreeNoodleEligible ? (
+                        <div className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded text-center font-bold">
+                          ✨ 已達標！可選贈送主食
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 text-center">
+                          再 ${FREE_NOODLE_THRESHOLD - currentTotal} 元可選贈送主食
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 菜單項目 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 pb-20">
               {filteredMenu.map(item => (
                 <div key={item.id} className={`bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex justify-between items-center transition ${cart[item.id] ? 'ring-2 ring-amber-500 bg-amber-50' : ''}`}>
