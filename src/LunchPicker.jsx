@@ -432,12 +432,12 @@ const CAT_RUDE_RESPONSES = [
   "北七嗎 這麼兇幹嘛",
   "想打架是嗎?",
   "他喵的是想怎樣",
-  "如果一加一等於二的話 那你一定是低能兒",
-  "喵喵 喵喵喵 喵喵"
+  "如果一加一等於二 那你一定是低能兒",
+  "講話不會好好講是嗎"
 ];
 
 const TARGET_DAY_MIN = 1;
-const TARGET_DAY_MAX = 5;
+const TARGET_DAY_MAX = 7;
 const LUNCH_WINDOW_START_MINUTES = 12 * 60;
 const LUNCH_WINDOW_END_MINUTES = 13 * 60;
 
@@ -467,6 +467,57 @@ export default function LunchPicker() {
   const [loadingMessage, setLoadingMessage] = useState("COMPUTING...");
   const [runawayBtnStyle, setRunawayBtnStyle] = useState({});
   // const [runawayPos, setRunawayPos] = useState({ x: 0, y: 0 }); // 移除這個狀態
+  const [runawayCount, setRunawayCount] = useState(0); // 逃跑次數計數
+
+  // 彈跳視窗狀態
+  const [showCouponModal, setShowCouponModal] = useState(false); // 顯示優惠券影片視窗
+  const [showQuizModal, setShowQuizModal] = useState(false); // 顯示測驗視窗
+  const [countdown, setCountdown] = useState(30); // 倒數計時
+  const [canSkip, setCanSkip] = useState(false); // 是否可以跳過
+  const [showCouponText, setShowCouponText] = useState(false); // 顯示優惠券已領完文字
+  const [quizResult, setQuizResult] = useState(null); // 測驗結果: 'correct', 'wrong', null
+  const [wrongAnswer, setWrongAnswer] = useState(null); // 錯誤的答案
+  const [isVideoPaused, setIsVideoPaused] = useState(false); // 影片是否暫停
+  const playerRef = useRef(null); // YouTube Player 實例
+  const playerContainerRef = useRef(null); // Player 容器 DOM 參考
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0); // 當前題目索引
+  const [hasChangedQuestion, setHasChangedQuestion] = useState(false); // 是否已換過題目
+
+  // 題庫
+  const quizQuestions = useMemo(() => [
+    {
+      question: '糖鼎黑糖是哪一年創立的？',
+      options: [2014, 2015, 2016, 2017],
+      correctAnswer: 2016
+    },
+    {
+      question: '糖鼎創辦人叫什麼名字？',
+      options: ['吳寰宇', '吴宇寰', 'Jack', '吳環宇'],
+      correctAnswer: '吳寰宇'
+    },
+    {
+      question: '圖片中的商品叫做什麼名稱？',
+      image: '/src/assets/pic/questionPic.jpg',
+      answerImage: '/src/assets/pic/answerPic.jpg', // 答對後顯示的圖片
+      options: ['男友照顧女友組', '男友呵護女友組', '男友寵愛女友組', '男友給女友組'],
+      correctAnswer: '男友呵護女友組'
+    },
+    {
+      question: '下列哪個不是糖鼎黑糖的系列？',
+      options: ['黑糖', '經典', '薑母', '清涼'],
+      correctAnswer: '清涼'
+    },
+    {
+      question: '綁定line送幾顆黑糖磚？',
+      options: ['1', '2', '3', '4'],
+      correctAnswer: '2'
+    },
+    {
+      question: '糖鼎的英文是什麼？',
+      options: ['TANG DIN', 'TANG DEN', 'TENG DENG', 'TANG DING'],
+      correctAnswer: 'TANG DING'
+    }
+  ], []);
 
   // 懲罰機制狀態
   const [spinCount, setSpinCount] = useState(0);
@@ -590,6 +641,87 @@ export default function LunchPicker() {
     
     return () => unsubscribe();
   }, [isLoggedIn]);
+
+  // 初始化 YouTube IFrame API
+  useEffect(() => {
+    // 載入 YouTube IFrame API
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    }
+
+    // 當 API 準備好時的回調
+    window.onYouTubeIframeAPIReady = () => {
+      console.log('YouTube IFrame API is ready');
+    };
+  }, []);
+
+  // 當優惠券視窗開啟時，初始化 YouTube Player
+  useEffect(() => {
+    if (showCouponModal && !showCouponText && window.YT && window.YT.Player) {
+      // 等待 DOM 渲染完成
+      setTimeout(() => {
+        if (playerContainerRef.current && !playerRef.current) {
+          playerRef.current = new window.YT.Player(playerContainerRef.current, {
+            videoId: '41UtwTR8Rbg',
+            playerVars: {
+              autoplay: 1,           // 自動播放
+              mute: 0,               // 有聲音
+              controls: 0,           // 不顯示控件
+              loop: 1,               // 循環播放
+              playlist: '41UtwTR8Rbg', // loop 需要設定 playlist
+              rel: 0,                // 不顯示相關影片
+              modestbranding: 1,     // 不顯示 YouTube logo
+              showinfo: 0,           // 不顯示標題
+              fs: 0,                 // 不顯示全螢幕按鈕
+              iv_load_policy: 3,     // 不顯示註解
+              disablekb: 1,          // 禁用鍵盤控制
+            },
+            events: {
+              onReady: (event) => {
+                console.log('YouTube Player is ready');
+                event.target.playVideo();
+              },
+              onStateChange: (event) => {
+                // YT.PlayerState.PLAYING = 1
+                // YT.PlayerState.PAUSED = 2
+                // YT.PlayerState.ENDED = 0
+                if (event.data === window.YT.PlayerState.PAUSED) {
+                  console.log('Video paused');
+                  setIsVideoPaused(true);
+                } else if (event.data === window.YT.PlayerState.PLAYING) {
+                  console.log('Video playing');
+                  setIsVideoPaused(false);
+                }
+              },
+            },
+          });
+        }
+      }, 100);
+    }
+
+    // 清理：關閉視窗時銷毀播放器
+    return () => {
+      if (playerRef.current && playerRef.current.destroy) {
+        playerRef.current.destroy();
+        playerRef.current = null;
+      }
+    };
+  }, [showCouponModal, showCouponText]);
+
+  // 倒數計時器 - 只在影片播放時倒數
+  useEffect(() => {
+    if (showCouponModal && countdown > 0 && !canSkip && !isVideoPaused) {
+      const timer = setTimeout(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (countdown === 0) {
+      setCanSkip(true);
+    }
+  }, [showCouponModal, countdown, canSkip, isVideoPaused]);
 
   // 處理登入
   const handleLogin = async (e) => {
@@ -896,6 +1028,9 @@ export default function LunchPicker() {
         const winner = filteredRestaurants[winningIndex];
         setWinningRestaurant(winner);
         setIsSpinning(false);
+        // 立即顯示 toast
+        setToast({ message: `🎉 恭喜！今天吃 ${winner.name}！`, type: 'success' });
+        // 儲存到資料庫（不等待完成）
         saveWinningRestaurant(winner);
         // 不清理貓咪狀態，讓貓咪軍團永久存在
         return;
@@ -982,6 +1117,12 @@ export default function LunchPicker() {
 
   // 惡搞：逃跑按鈕
   const handleRunawayHover = (e) => {
+    // 如果已經逃跑 6 次，就不再逃跑
+    if (runawayCount >= 6) return;
+    
+    // 增加逃跑次數
+    setRunawayCount(prev => prev + 1);
+    
     // 取得按鈕當前的 DOM 元素
     const btn = e.target.getBoundingClientRect();
     const btnWidth = btn.width;
@@ -1058,6 +1199,105 @@ export default function LunchPicker() {
     });
   };
 
+  // 點擊優惠券按鈕
+  const handleCouponClick = () => {
+    if (runawayCount >= 6) {
+      setShowCouponModal(true);
+      setCountdown(30);
+      setCanSkip(false);
+      setShowCouponText(false);
+    }
+  };
+
+  // 跳過廣告
+  const handleSkipAd = () => {
+    if (canSkip) {
+      setShowCouponText(true);
+    }
+  };
+
+  // 開啟測驗視窗
+  const handleOpenQuiz = () => {
+    // 隨機選擇一個題目
+    const randomIndex = Math.floor(Math.random() * quizQuestions.length);
+    setCurrentQuestionIndex(randomIndex);
+    setShowQuizModal(true);
+    setHasChangedQuestion(false);
+    
+    // 暫停影片
+    if (playerRef.current && playerRef.current.pauseVideo) {
+      playerRef.current.pauseVideo();
+    }
+  };
+
+  // 更換題目（只能換一次）
+  const handleChangeQuestion = () => {
+    if (!hasChangedQuestion) {
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * quizQuestions.length);
+      } while (newIndex === currentQuestionIndex); // 確保不會抽到相同的題目
+      
+      setCurrentQuestionIndex(newIndex);
+      setHasChangedQuestion(true);
+      setQuizResult(null);
+      setWrongAnswer(null);
+    }
+  };
+
+  // 回答測驗
+  const handleQuizAnswer = (answer) => {
+    const currentQuestion = quizQuestions[currentQuestionIndex];
+    if (answer === currentQuestion.correctAnswer) {
+      // 答對了
+      setQuizResult('correct');
+      setWrongAnswer(null);
+    } else {
+      // 答錯了
+      setQuizResult('wrong');
+      setWrongAnswer(answer);
+    }
+  };
+
+  // 從測驗視窗返回
+  const handleBackFromQuiz = () => {
+    setShowQuizModal(false);
+    setQuizResult(null);
+    setWrongAnswer(null);
+    setShowCouponText(true);
+    
+    // 恢復播放影片（雖然已經要顯示優惠券文字了）
+    if (playerRef.current && playerRef.current.playVideo) {
+      playerRef.current.playVideo();
+    }
+  };
+  
+  // 關閉測驗視窗（不領取優惠券）
+  const handleCloseQuiz = () => {
+    setShowQuizModal(false);
+    setQuizResult(null);
+    setWrongAnswer(null);
+    
+    // 恢復播放影片
+    if (playerRef.current && playerRef.current.playVideo) {
+      playerRef.current.playVideo();
+    }
+  };
+
+  // 關閉優惠券視窗
+  const handleCloseCouponModal = () => {
+    setShowCouponModal(false);
+    setShowQuizModal(false);
+    setShowCouponText(false);
+    setCountdown(30);
+    setCanSkip(false);
+    setQuizResult(null);
+    setWrongAnswer(null);
+    setIsVideoPaused(false);
+    setHasChangedQuestion(false);
+  };
+
+
   // 儲存中獎餐廳到 Firebase
   const saveWinningRestaurant = async (restaurant) => {
     if (!user || !username) return;
@@ -1086,7 +1326,7 @@ export default function LunchPicker() {
         username: username
       });
       
-      setToast({ message: `🎉 恭喜！今天吃 ${restaurant.name}！`, type: 'success' });
+      // Toast 已經在轉盤結束時立即顯示，這裡不再顯示
     } catch (err) {
       console.error('儲存失敗:', err);
       setToast({ message: '儲存失敗，請重試', type: 'error' });
@@ -1355,7 +1595,7 @@ export default function LunchPicker() {
                   onClick={() => handleCatResponse('rude')}
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform transition hover:scale-105 active:scale-95"
                 >
-                  關你屁事
+                  關貓咪屁事
                 </button>
                 <button 
                   onClick={() => handleCatResponse('polite')}
@@ -1384,6 +1624,187 @@ export default function LunchPicker() {
               <div className="h-full bg-white animate-[width_5s_linear_forwards]" style={{width: '0%'}}></div>
             </div>
             <p className="mt-4 text-xl opacity-75 font-mono">SYSTEM_LOCKDOWN: 5s</p>
+        </div>
+      )}
+
+      {/* 優惠券影片彈跳視窗 */}
+      {showCouponModal && (
+        <div 
+          className={`fixed inset-0 z-[10000] bg-black/70 flex items-center justify-center p-4 transition-opacity duration-300 ${
+            showCouponModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={handleCloseCouponModal}
+        >
+          <div 
+            className={`bg-white rounded-2xl shadow-2xl max-w-2xl w-full relative transform transition-all duration-300 ${
+              showCouponModal ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 關閉按鈕 */}
+            <button
+              onClick={handleCloseCouponModal}
+              className="absolute top-4 right-4 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition-all duration-200 transform hover:scale-110"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* 標題 */}
+            <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-6 rounded-t-2xl">
+              <h2 className="text-2xl font-bold text-center">觀看完影片即可獲得優惠券</h2>
+            </div>
+
+            {/* 內容區 */}
+            <div className="p-6">
+              {!showCouponText ? (
+                <div className="relative">
+                  {/* YouTube 影片容器 */}
+                  <div className="aspect-[9/16] max-h-[600px] mx-auto rounded-lg overflow-hidden bg-black">
+                    <div 
+                      ref={playerContainerRef}
+                      id="youtube-player"
+                      className="w-full h-full"
+                    />
+                  </div>
+
+                  {/* 右下角按鈕組 - 緊貼右邊框，離底部有距離 */}
+                  <div className="absolute right-0 bottom-6 flex flex-col gap-2 z-10">
+                    {/* 跳過廣告按鈕 */}
+                    <button
+                      onClick={handleSkipAd}
+                      disabled={!canSkip}
+                      className={`px-4 py-2 font-bold text-sm transition-all duration-200 bg-gray-900/70 text-white ${
+                        canSkip 
+                          ? 'hover:bg-gray-800/80 cursor-pointer' 
+                          : 'cursor-not-allowed opacity-60'
+                      }`}
+                    >
+                      {canSkip ? '跳過廣告' : `等待 ${countdown} 秒跳過廣告`}
+                    </button>
+
+                    {/* 糖鼎粉絲按鈕 */}
+                    <button
+                      onClick={handleOpenQuiz}
+                      className="bg-gray-900/70 hover:bg-gray-800/80 text-white px-4 py-2 font-bold text-sm transition-all duration-200"
+                    >
+                      我是糖鼎粉絲免費跳過廣告
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* 優惠券已領完文字 */
+                <div className="text-center py-20">
+                  <Frown className="w-24 h-24 mx-auto text-gray-400 mb-4" />
+                  <p className="text-3xl font-bold text-gray-700">優惠券已被領完</p>
+                  <p className="text-gray-500 mt-2">下次請早</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 測驗彈跳視窗 */}
+      {showQuizModal && (
+        <div 
+          className={`fixed inset-0 z-[10001] bg-black/80 flex items-center justify-center p-4 transition-opacity duration-300 ${
+            showQuizModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+        >
+          <div 
+            className={`bg-gradient-to-br from-pink-100 to-purple-100 rounded-2xl shadow-2xl max-w-md w-full p-8 relative transform transition-all duration-300 ${
+              showQuizModal ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 關閉按鈕 */}
+            <button
+              onClick={handleCloseQuiz}
+              className="absolute top-4 right-4 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition-all duration-200 transform hover:scale-110"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* 換題按鈕（右下角） - 答對後隱藏 */}
+            {quizResult !== 'correct' && (
+              <button
+                onClick={handleChangeQuestion}
+                disabled={hasChangedQuestion}
+                className={`absolute bottom-4 right-4 z-10 px-3 py-2 rounded-lg font-bold text-xs transition-all duration-200 ${
+                  hasChangedQuestion
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer'
+                }`}
+                title={hasChangedQuestion ? '已使用過換題機會' : '更換題目（僅限一次）'}
+              >
+                {hasChangedQuestion ? '已換題' : '免費換題一次'}
+              </button>
+            )}
+
+            {/* 標題 */}
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-purple-800 mb-2">糖鼎粉絲測驗</h2>
+              <p className="text-lg text-purple-600">{quizQuestions[currentQuestionIndex].question}</p>
+            </div>
+
+            {/* 圖片（如果有的話） */}
+            {quizQuestions[currentQuestionIndex].image && (
+              <div className="mb-4 flex justify-center">
+                <img 
+                  src={
+                    quizResult === 'correct' && quizQuestions[currentQuestionIndex].answerImage
+                      ? quizQuestions[currentQuestionIndex].answerImage
+                      : quizQuestions[currentQuestionIndex].image
+                  } 
+                  alt="題目圖片" 
+                  className="max-w-full max-h-48 rounded-lg shadow-md"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    console.error('圖片載入失敗:', quizQuestions[currentQuestionIndex].image);
+                  }}
+                />
+              </div>
+            )}
+
+            {/* 選項 */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {quizQuestions[currentQuestionIndex].options.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleQuizAnswer(option)}
+                  disabled={quizResult === 'correct'}
+                  className={`font-bold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 text-xl border-2 ${
+                    wrongAnswer === option
+                      ? 'bg-red-500 text-white border-red-600'
+                      : option === quizQuestions[currentQuestionIndex].correctAnswer && quizResult === 'correct'
+                      ? 'bg-green-500 text-white border-green-600'
+                      : 'bg-white hover:bg-purple-500 hover:text-white text-purple-800 border-purple-300 hover:border-purple-600 hover:scale-105 active:scale-95'
+                  } ${quizResult === 'correct' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+
+            {/* 結果訊息 */}
+            {quizResult === 'wrong' && (
+              <div className="text-center mb-4">
+                <p className="text-red-600 font-bold text-lg">❌ 答錯了！請再試一次</p>
+              </div>
+            )}
+            
+            {quizResult === 'correct' && (
+              <div className="text-center mb-4">
+                <p className="text-green-600 font-bold text-lg mb-4">✅ 答對了！</p>
+                <button
+                  onClick={handleBackFromQuiz}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transform transition-all duration-200 hover:scale-105"
+                >
+                  返回領取優惠券
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1594,7 +2015,7 @@ export default function LunchPicker() {
             
             <div className="p-4 max-h-[calc(80vh-60px)] overflow-y-auto">
               {/* 今日動態 */}
-              <div className="mb-6">
+              <div>
                 <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   今日動態 ({todayLunches.length})
@@ -1602,8 +2023,8 @@ export default function LunchPicker() {
                 {todayLunches.length === 0 ? (
                   <p className="text-xs text-slate-400 text-center py-4">還沒有人轉過輪盤</p>
                 ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {todayLunches.slice(0, 5).map(lunch => (
+                  <div className="space-y-2">
+                    {todayLunches.map(lunch => (
                       <div key={lunch.id} className="bg-slate-50 p-2 rounded-lg text-xs">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
@@ -1619,41 +2040,6 @@ export default function LunchPicker() {
                         </div>
                       </div>
                     ))}
-                    {todayLunches.length > 5 && (
-                      <p className="text-xs text-slate-400 text-center py-1">還有 {todayLunches.length - 5} 筆...</p>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {/* 今日統計 */}
-              <div>
-                <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  餐廳排行
-                </h4>
-                {Object.keys(todayStats).length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-4">還沒有統計數據</p>
-                ) : (
-                  <div className="space-y-2">
-                    {Object.entries(todayStats)
-                      .sort((a, b) => b[1].count - a[1].count)
-                      .slice(0, 5)
-                      .map(([restaurantName, data], index) => (
-                        <div key={restaurantName} className="bg-slate-50 p-2 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${
-                              index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-blue-500'
-                            }`}>
-                              {index + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-xs text-slate-800 truncate">{restaurantName}</p>
-                              <p className="text-xs text-slate-500">{data.count} 人選擇</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
                   </div>
                 )}
               </div>
@@ -1797,6 +2183,7 @@ export default function LunchPicker() {
                     {/* 惡搞：逃跑按鈕 */}
                     <button
                       onMouseEnter={handleRunawayHover}
+                      onClick={handleCouponClick}
                       style={runawayBtnStyle}
                       className="flex items-center justify-center text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 py-2 px-5 rounded-lg transition duration-150 shadow-md text-sm font-bold"
                     >
