@@ -556,6 +556,14 @@ export default function LunchPicker() {
     tags: []
   });
 
+  // --- New State for Ratings & Manage UI ---
+  const [selectedRestaurantForManage, setSelectedRestaurantForManage] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState(null); // { id, name }
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+
+
   // --- Authentication & Initialization ---
   useEffect(() => {
     const initAuth = async () => {
@@ -805,6 +813,90 @@ export default function LunchPicker() {
   const getMapUrl = (restaurantName, address) => {
     const query = `${restaurantName}, ${address}`;
     return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&t=m&output=embed`;
+  };
+
+  // --- Review Logic ---
+  
+  // Open Review Modal
+  const handleOpenReview = (restaurant) => {
+    setReviewTarget({ id: restaurant.firebaseId, name: restaurant.name });
+    setReviewForm({ rating: 5, comment: '' });
+    setShowReviewModal(true);
+  };
+
+  // Submit Review
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!user || !reviewTarget) return;
+
+    try {
+      const restaurantRef = doc(db, 'artifacts', appId, 'public', 'data', 'restaurants', reviewTarget.id);
+      const reviewsRef = collection(restaurantRef, 'reviews');
+      
+      // 1. Add Review to Subcollection
+      await addDoc(reviewsRef, {
+        userId: user.uid,
+        username: username,
+        rating: reviewForm.rating,
+        comment: reviewForm.comment,
+        timestamp: serverTimestamp()
+      });
+
+      // 2. Update Restaurant Aggregate Data
+      // Note: In a real app, this should be a transaction or Cloud Function to be safe.
+      // Here we do a simple client-side calculation for simplicity as requested.
+      const restaurantDoc = currentRestaurants.find(r => r.firebaseId === reviewTarget.id);
+      const oldRating = restaurantDoc.rating || 0;
+      const oldCount = restaurantDoc.reviewCount || 0;
+      const newCount = oldCount + 1;
+      const newRating = ((oldRating * oldCount) + reviewForm.rating) / newCount;
+
+      await setDoc(restaurantRef, {
+        rating: newRating,
+        reviewCount: newCount
+      }, { merge: true });
+
+      setToast({ message: "評論發布成功！", type: "success" });
+      setShowReviewModal(false);
+      
+      // If we are in manage view and this restaurant is selected, refresh reviews
+      if (selectedRestaurantForManage?.firebaseId === reviewTarget.id) {
+        fetchReviews(reviewTarget.id);
+      }
+
+    } catch (err) {
+      console.error("Error submitting review:", err);
+      setToast({ message: "評論失敗，請稍後再試", type: "error" });
+    }
+  };
+
+  // Fetch Reviews
+  const fetchReviews = (restaurantId) => {
+    const reviewsRef = collection(db, 'artifacts', appId, 'public', 'data', 'restaurants', restaurantId, 'reviews');
+    // Subscribe to reviews
+    return onSnapshot(reviewsRef, (snapshot) => {
+      const loadedReviews = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      loadedReviews.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+      setReviews(loadedReviews);
+    });
+  };
+
+  // Select Restaurant for Manage View
+  useEffect(() => {
+    let unsubscribe = () => {};
+    if (selectedRestaurantForManage) {
+      unsubscribe = fetchReviews(selectedRestaurantForManage.firebaseId);
+    } else {
+        setReviews([]);
+    }
+    return () => unsubscribe();
+  }, [selectedRestaurantForManage]);
+
+  const handleSelectRestaurantForManage = (restaurant) => {
+    setSelectedRestaurantForManage(restaurant);
   };
 
   // 篩選餐廳
@@ -2167,7 +2259,22 @@ export default function LunchPicker() {
               ) : winningRestaurant ? (
                 <>
                   <p className="text-lg font-bold text-slate-500 uppercase tracking-wider">Decision Made</p>
-                  <p className="text-3xl sm:text-4xl font-extrabold text-blue-600 animate-pulse mt-1">{winningRestaurant.name}</p>
+                  <button
+                    onClick={() => {
+                      setCurrentView('manage');
+                      setSelectedRestaurantForManage(winningRestaurant);
+                    }}
+                    className="text-3xl sm:text-4xl font-extrabold text-blue-600 animate-pulse mt-1 hover:text-blue-700 transition cursor-pointer underline decoration-2 underline-offset-4"
+                  >
+                    {winningRestaurant.name}
+                  </button>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="flex text-yellow-400 text-lg">
+                      {'★'.repeat(Math.round(winningRestaurant.rating || 0))}
+                      <span className="text-slate-300">{'★'.repeat(5 - Math.round(winningRestaurant.rating || 0))}</span>
+                    </div>
+                    <span className="text-sm text-slate-500">({winningRestaurant.reviewCount || 0} 評論)</span>
+                  </div>
                   <p className="text-sm text-slate-500 mt-1">{winningRestaurant.address}</p>
                   
                   <div className="flex gap-2 mt-4">
@@ -2246,7 +2353,22 @@ export default function LunchPicker() {
                         <div className="w-8 h-8 rounded bg-slate-100 text-slate-600 font-bold flex items-center justify-center mr-3 text-sm">
                           {restaurant.name.charAt(0)}
                         </div>
-                        <p className="text-lg font-bold text-slate-800">{restaurant.name}</p>
+                        <button
+                          onClick={() => {
+                            setCurrentView('manage');
+                            setSelectedRestaurantForManage(restaurant);
+                          }}
+                          className="text-lg font-bold text-slate-800 hover:text-blue-600 transition cursor-pointer hover:underline"
+                        >
+                          {restaurant.name}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 ml-11">
+                        <div className="flex text-yellow-400 text-sm">
+                          {'★'.repeat(Math.round(restaurant.rating || 0))}
+                          <span className="text-slate-300">{'★'.repeat(5 - Math.round(restaurant.rating || 0))}</span>
+                        </div>
+                        <span className="text-xs text-slate-500">({restaurant.reviewCount || 0})</span>
                       </div>
                       <p className="text-sm text-slate-500 mt-1 ml-11">{restaurant.address}</p>
                       <p className="text-xs text-slate-400 mt-2 ml-11 flex items-center space-x-2">
@@ -2265,8 +2387,15 @@ export default function LunchPicker() {
                         onClick={() => toggleMap(restaurant.id)}
                         className="flex items-center justify-center text-blue-600 bg-white border border-blue-200 hover:bg-blue-50 py-1.5 px-3 rounded-md transition duration-150 shadow-sm group"
                       >
-                        <span className="text-xs font-bold mr-1">{openMaps[restaurant.id] ? 'HIDE' : 'MAP'}</span>
+                        <span className="text-xs font-bold mr-1">{openMaps[restaurant.id] ? 'HIDE' : '地圖'}</span>
                         <MapPin className="w-3 h-3 text-blue-600 group-hover:text-blue-700" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenReview(restaurant)}
+                        className="flex items-center justify-center text-yellow-600 bg-white border border-yellow-200 hover:bg-yellow-50 py-1.5 px-3 rounded-md transition duration-150 shadow-sm group"
+                      >
+                        <span className="text-xs font-bold mr-1">評論</span>
+                        <span className="text-xs">★</span>
                       </button>
                     </div>
                   </div>
@@ -2295,65 +2424,169 @@ export default function LunchPicker() {
 
         {/* === 餐廳管理視圖 === */}
         {currentView === 'manage' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
+          <div className="h-[calc(100vh-200px)] min-h-[600px] flex flex-col">
+            <div className="flex justify-between items-center mb-4 shrink-0">
               <h2 className="text-2xl font-bold text-slate-800">餐廳管理</h2>
               <button
                 onClick={() => setShowAddRestaurant(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 font-bold"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 font-bold shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 新增餐廳
               </button>
             </div>
             
-            <div className="space-y-3">
-              {currentRestaurants.map(restaurant => (
-                <div key={restaurant.firebaseId} className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <p className="font-bold text-lg text-slate-800">{restaurant.name}</p>
-                      <p className="text-sm text-slate-500">{restaurant.address}</p>
-                      <div className="flex gap-2 mt-2 text-xs">
-                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">{restaurant.price}</span>
-                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded">{formatDistance(restaurant.distance)}</span>
-                        <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">{restaurant.timeStart} - {restaurant.timeEnd}</span>
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
+              {/* 左側列表 (4/12) */}
+              <div className="md:col-span-4 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-slate-700">
+                  餐廳列表 ({currentRestaurants.length})
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                  {currentRestaurants.map(restaurant => (
+                    <div 
+                      key={restaurant.firebaseId} 
+                      onClick={() => handleSelectRestaurantForManage(restaurant)}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+                        selectedRestaurantForManage?.firebaseId === restaurant.firebaseId
+                          ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' 
+                          : 'bg-white border-slate-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-bold text-slate-800">{restaurant.name}</p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-yellow-500 flex text-xs">
+                              {'★'.repeat(Math.round(restaurant.rating || 0))}
+                              <span className="text-slate-300">{'★'.repeat(5 - Math.round(restaurant.rating || 0))}</span>
+                            </span>
+                            <span className="text-xs text-slate-500">({restaurant.reviewCount || 0})</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteRestaurant(restaurant.firebaseId);
+                          }}
+                          className="text-slate-400 hover:text-red-600 p-1 rounded transition"
+                          title="刪除餐廳"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => toggleMap(restaurant.firebaseId)}
-                        className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition"
-                        title="查看地圖"
-                      >
-                        <MapPin className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRestaurant(restaurant.firebaseId)}
-                        className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition"
-                        title="刪除餐廳"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 右側詳細資訊 (8/12) */}
+              <div className="md:col-span-8 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                {selectedRestaurantForManage ? (
+                  <div className="flex-1 overflow-y-auto">
+                    {/* 地圖區塊 */}
+                    <div className="h-64 w-full bg-slate-100 relative">
+                       <iframe
+                          width="100%"
+                          height="100%"
+                          frameBorder="0"
+                          loading="lazy"
+                          allowFullScreen
+                          referrerPolicy="no-referrer-when-downgrade"
+                          src={getMapUrl(selectedRestaurantForManage.name, selectedRestaurantForManage.address)}
+                          className="absolute inset-0"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 text-white">
+                          <h3 className="text-2xl font-bold drop-shadow-md">{selectedRestaurantForManage.name}</h3>
+                          <p className="text-sm opacity-90">{selectedRestaurantForManage.address}</p>
+                        </div>
+                    </div>
+
+                    {/* 詳細資訊區塊 */}
+                    <div className="p-6">
+                      <div className="flex flex-wrap gap-4 mb-6">
+                        <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
+                          <span className="text-xs text-slate-500 block uppercase">價格</span>
+                          <span className={`font-bold ${getPriceColor(selectedRestaurantForManage.price)}`}>{selectedRestaurantForManage.price}</span>
+                        </div>
+                        <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
+                          <span className="text-xs text-slate-500 block uppercase">距離</span>
+                          <span className="font-bold text-slate-700">{formatDistance(selectedRestaurantForManage.distance)}</span>
+                        </div>
+                        <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
+                          <span className="text-xs text-slate-500 block uppercase">營業時間</span>
+                          <span className="font-bold text-slate-700">{selectedRestaurantForManage.timeStart} - {selectedRestaurantForManage.timeEnd}</span>
+                        </div>
+                         <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
+                          <span className="text-xs text-slate-500 block uppercase">綜合評分</span>
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold text-yellow-600 text-lg">{selectedRestaurantForManage.rating?.toFixed(1) || 'N/A'}</span>
+                            <span className="text-xs text-slate-400">/ 5.0</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 評論區塊 */}
+                      <div>
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <span className="bg-blue-100 text-blue-600 p-1 rounded">
+                               <List className="w-4 h-4" />
+                            </span>
+                            評論列表 ({reviews.length})
+                          </h4>
+                          <button
+                            onClick={() => handleOpenReview(selectedRestaurantForManage)}
+                            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm transition flex items-center gap-2"
+                          >
+                            <span>★</span>
+                            撰寫評論
+                          </button>
+                        </div>
+                        
+                        {reviews.length === 0 ? (
+                          <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                            <p className="text-slate-500">目前還沒有評論，快去當第一個評論的人！</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {reviews.map(review => (
+                              <div key={review.id} className="border-b border-slate-100 pb-4 last:border-0">
+                                <div className="flex justify-between items-start mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                                      {review.username?.[0] || 'U'}
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-sm text-slate-800">{review.username}</p>
+                                      <p className="text-xs text-slate-400">
+                                        {review.timestamp?.toDate ? new Date(review.timestamp.toDate()).toLocaleString() : '剛剛'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex text-yellow-400 text-sm">
+                                    {'★'.repeat(review.rating)}
+                                    <span className="text-slate-200">{'★'.repeat(5 - review.rating)}</span>
+                                  </div>
+                                </div>
+                                <p className="text-slate-600 text-sm pl-10 bg-slate-50 p-3 rounded-r-lg rounded-bl-lg mt-1">
+                                  {review.comment}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  
-                  {/* 地圖容器 */}
-                  {openMaps[restaurant.firebaseId] && (
-                    <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '250px' }}>
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        frameBorder="0"
-                        loading="lazy"
-                        allowFullScreen
-                        referrerPolicy="no-referrer-when-downgrade"
-                        src={getMapUrl(restaurant.name, restaurant.address)}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-50">
+                    <MapPin className="w-16 h-16 mb-4 opacity-20" />
+                    <p className="text-lg font-medium">請從左側列表選擇一家餐廳</p>
+                    <p className="text-sm opacity-60">查看詳細資訊、地圖與評論</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -2383,13 +2616,22 @@ export default function LunchPicker() {
                       <div className="flex flex-col items-end gap-2">
                         <span className="text-sm font-bold text-slate-600">{record.restaurant?.price}</span>
                         {record.restaurant?.address && (
-                          <button
-                            onClick={() => toggleMap(record.id)}
-                            className="text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition"
-                            title="查看地圖"
-                          >
-                            <MapPin className="w-4 h-4" />
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                                onClick={() => toggleMap(record.id)}
+                                className="text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition"
+                                title="查看地圖"
+                            >
+                                <MapPin className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => handleOpenReview(record.restaurant)}
+                                className="text-yellow-600 hover:text-yellow-700 p-1 hover:bg-yellow-50 rounded transition"
+                                title="評分"
+                            >
+                                <span className="text-sm">★</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -2415,6 +2657,63 @@ export default function LunchPicker() {
           </div>
         )}
       </div>
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black/50 z-[10002] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">
+                評論: {reviewTarget?.name}
+              </h3>
+              <button 
+                onClick={() => setShowReviewModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmitReview} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">評分</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
+                      className={`text-3xl transition transform hover:scale-110 ${
+                        star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-200'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">留言</label>
+                <textarea
+                  value={reviewForm.comment}
+                  onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                  placeholder="寫下你的用餐體驗..."
+                  required
+                />
+              </div>
+              
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md"
+              >
+                送出評論
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
