@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import * as faceapi from 'face-api.js';
 import { useNavigate } from 'react-router-dom';
 import { Compass, Filter, List, MapPin, Play, Loader, ChevronUp, AlertCircle, Home, ChefHat, User, Plus, Trash2, History, Users, TrendingUp, X, Frown } from 'lucide-react';
 import Toast from './components/Toast';
@@ -563,6 +564,16 @@ export default function LunchPicker() {
   const [reviewTarget, setReviewTarget] = useState(null); // { id, name }
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
 
+  // --- Face API State ---
+  const [isModelLoading, setIsModelLoading] = useState(false);
+  const [faceData, setFaceData] = useState(null); // { age, gender, expressions }
+  const [cameraStream, setCameraStream] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRefFace = useRef(null);
+  const [faceRecommendation, setFaceRecommendation] = useState(null);
+
+
+
 
   // --- Authentication & Initialization ---
   useEffect(() => {
@@ -730,6 +741,165 @@ export default function LunchPicker() {
       setCanSkip(true);
     }
   }, [showCouponModal, countdown, canSkip, isVideoPaused]);
+
+  // --- Face API Logic ---
+  const loadModels = async () => {
+    setIsModelLoading(true);
+    try {
+      const MODEL_URL = '/models';
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+        faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL)
+      ]);
+      console.log("Models loaded successfully");
+    } catch (error) {
+      console.error("Error loading models:", error);
+      setToast({ message: "載入模型失敗，請檢查網路或重新整理", type: "error" });
+    } finally {
+      setIsModelLoading(false);
+    }
+  };
+
+  const startVideo = () => {
+    setFaceData(null);
+    setFaceRecommendation(null);
+    navigator.mediaDevices
+      .getUserMedia({ video: { width: 640, height: 480 } })
+      .then((stream) => {
+        setCameraStream(stream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      })
+      .catch((err) => {
+        console.error("Error accessing camera:", err);
+        setToast({ message: "無法存取相機，請確認權限", type: "error" });
+      });
+  };
+
+  const stopVideo = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+  };
+
+  const handleVideoPlay = () => {
+    const video = videoRef.current;
+    const canvas = canvasRefFace.current;
+    if (!video || !canvas) return;
+
+    const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
+    faceapi.matchDimensions(canvas, displaySize);
+
+    const interval = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) {
+        clearInterval(interval);
+        return;
+      }
+
+      const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceExpressions()
+        .withAgeAndGender();
+
+      const resizedDetections = faceapi.resizeResults(detections, displaySize);
+      
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      
+      faceapi.draw.drawDetections(canvas, resizedDetections);
+      faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+
+      if (detections.length > 0) {
+        const detection = detections[0];
+        const { age, gender, expressions } = detection;
+        
+        // Find dominant expression
+        const sortedExpressions = Object.entries(expressions).sort((a, b) => b[1] - a[1]);
+        const dominantExpression = sortedExpressions[0][0];
+
+        setFaceData({
+          age: Math.round(age),
+          gender,
+          expression: dominantExpression
+        });
+      }
+    }, 500);
+    
+    return () => clearInterval(interval);
+  };
+
+  const generateFaceRecommendation = () => {
+    if (!faceData) return;
+    
+    // Logic for recommendation
+    let moodText = "";
+    let recommendTags = [];
+    
+    switch (faceData.expression) {
+      case 'happy':
+        moodText = "看你看起來心情不錯，吃點好的犒賞自己！";
+        recommendTags = ['高級', '排餐', '日式', '米其林'];
+        break;
+      case 'sad':
+        moodText = "心情不好嗎？吃點甜的或是炸的讓自己開心一下！";
+        recommendTags = ['甜點', '炸雞', '速食', '飲料'];
+        break;
+      case 'angry':
+        moodText = "消消氣，吃點涼的降降火！";
+        recommendTags = ['冰品', '涼麵', '飲料', '輕食'];
+        break;
+      case 'surprised':
+        moodText = "發生什麼事了嗎？吃點特別的壓壓驚！";
+        recommendTags = ['異國', '韓式', '泰式', '特色'];
+        break;
+      case 'fearful':
+        moodText = "別怕，吃飽了就有力氣面對！";
+        recommendTags = ['便當', '自助餐', '飯食', '飽足感'];
+        break;
+      case 'disgusted':
+        moodText = "沒胃口嗎？吃點清淡的！";
+        recommendTags = ['粥', '湯', '輕食', '素食'];
+        break;
+      default:
+        moodText = "看起來很平靜，隨便吃什麼都好！";
+        recommendTags = ['小吃', '麵食', '便當'];
+    }
+
+    // Filter restaurants
+    let candidates = currentRestaurants.filter(r => 
+      r.tags.some(tag => recommendTags.includes(tag))
+    );
+    
+    if (candidates.length === 0) {
+      candidates = currentRestaurants; // Fallback to all
+    }
+    
+    const randomRestaurant = candidates[Math.floor(Math.random() * candidates.length)];
+    
+    setFaceRecommendation({
+      restaurant: randomRestaurant,
+      reason: moodText,
+      details: `偵測到：${faceData.gender === 'male' ? '男性' : '女性'}, 約 ${faceData.age} 歲, 表情: ${faceData.expression}`
+    });
+    
+    // Stop video after recommendation
+    stopVideo();
+  };
+
+  useEffect(() => {
+    if (currentView === 'face') {
+      loadModels().then(() => {
+        startVideo();
+      });
+    } else {
+      stopVideo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView]);
 
   // 處理登入
   const handleLogin = async (e) => {
@@ -2087,6 +2257,18 @@ export default function LunchPicker() {
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setCurrentView('face')}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
+              currentView === 'face' 
+                ? 'bg-purple-600 text-white shadow-md' 
+                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            看面相
+          </button>
         </div>
         
         {/* 漂浮統計按鈕 - 固定在左上角 */}
@@ -2652,6 +2834,136 @@ export default function LunchPicker() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* === 看面相視圖 === */}
+        {currentView === 'face' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">AI 面相大師</h2>
+            
+            {!faceRecommendation ? (
+              <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                <div className="flex flex-col items-center">
+                  <div className="relative w-full max-w-2xl aspect-video bg-black rounded-lg overflow-hidden mb-6">
+                    {isModelLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center text-white bg-black/50 z-20">
+                        <Loader className="w-8 h-8 animate-spin mr-2" />
+                        <span>載入模型中...</span>
+                      </div>
+                    )}
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      muted
+                      playsInline
+                      width="640"
+                      height="480"
+                      onLoadedMetadata={handleVideoPlay}
+                      className="w-full h-full object-cover"
+                    />
+                    <canvas
+                      ref={canvasRefFace}
+                      width="640"
+                      height="480"
+                      className="absolute inset-0 w-full h-full"
+                    />
+                  </div>
+                  
+                  <div className="text-center mb-6 w-full">
+                    {faceData ? (
+                      <div className="space-y-4">
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                          <p className="text-lg font-medium text-slate-700">
+                            偵測到：
+                            <span className="font-bold text-blue-600 mx-1">
+                              {faceData.gender === 'male' ? '男性' : '女性'}
+                            </span>
+                            /
+                            <span className="font-bold text-blue-600 mx-1">
+                              約 {faceData.age} 歲
+                            </span>
+                          </p>
+                          <p className="text-lg font-medium text-slate-700 mt-2">
+                            表情：
+                            <span className="font-bold text-purple-600 uppercase mx-1">
+                              {faceData.expression}
+                            </span>
+                          </p>
+                        </div>
+                        <button
+                          onClick={generateFaceRecommendation}
+                          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95"
+                        >
+                          🔮 依照面相推薦午餐
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-slate-500 text-lg">請將臉部對準鏡頭...</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+                <div className="text-center">
+                  <div className="mb-6">
+                    <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ChefHat className="w-12 h-12 text-purple-600" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-800 mb-2">大師為您推薦</h3>
+                    <p className="text-purple-600 font-medium text-lg mb-6">{faceRecommendation.reason}</p>
+                    
+                    <div className="bg-slate-50 p-6 rounded-xl border-2 border-purple-100 inline-block w-full max-w-md">
+                      <h4 className="text-3xl font-bold text-slate-800 mb-3">{faceRecommendation.restaurant.name}</h4>
+                      <div className="flex justify-center gap-2 mb-3">
+                        <span className={`font-bold text-lg ${getPriceColor(faceRecommendation.restaurant.price)}`}>
+                          {faceRecommendation.restaurant.price}
+                        </span>
+                        <span className="text-slate-400">|</span>
+                        <span className="text-slate-600">{formatDistance(faceRecommendation.restaurant.distance)}</span>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-3">{faceRecommendation.restaurant.address}</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {faceRecommendation.restaurant.tags.map(tag => (
+                          <span key={tag} className="text-xs bg-white border border-slate-200 px-2 py-1 rounded-full text-slate-600">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-center gap-4 mb-6">
+                    <button
+                      onClick={() => {
+                        setFaceRecommendation(null);
+                        setFaceData(null);
+                        startVideo();
+                      }}
+                      className="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg font-bold hover:bg-slate-300 transition"
+                    >
+                      再測一次
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentView('main');
+                        setWinningRestaurant(faceRecommendation.restaurant);
+                        saveWinningRestaurant(faceRecommendation.restaurant);
+                        setToast({ message: `✅ 已選擇：${faceRecommendation.restaurant.name}`, type: 'success' });
+                      }}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition"
+                    >
+                      就吃這家！
+                    </button>
+                  </div>
+                  
+                  <p className="text-xs text-slate-400">
+                    {faceRecommendation.details}
+                  </p>
+                </div>
               </div>
             )}
           </div>
