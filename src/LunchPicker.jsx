@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { Compass, Filter, List, MapPin, Play, Loader, ChevronUp, AlertCircle, Home, ChefHat, User, Plus, Trash2, History, Users, TrendingUp, X, Frown } from 'lucide-react';
 import Toast from './components/Toast';
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInAnonymously, 
+import {
+  getAuth,
+  signInAnonymously,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
+import {
+  getFirestore,
+  collection,
   doc,
   setDoc,
   deleteDoc,
@@ -45,7 +45,7 @@ const REAL_RESTAURANTS_INITIAL = [
   { id: 34, name: '青島東路麵食館', price: "$", distance: 40, address: '台北市中正區青島東路7-3號', weekdayOpen: true, timeStart: "10:30", timeEnd: "20:00", tags: ['麵食', '小吃', '實惠'] },
   { id: 1, name: '一之軒', price: "$", distance: 60, address: '台北市中正區青島東路8號', weekdayOpen: true, timeStart: "07:00", timeEnd: "22:00", tags: ['麵包', '輕食', '咖啡'] },
   { id: 21, name: '青島排骨便當', price: "$$", distance: 100, address: '台北市中正區青島東路3-3號', weekdayOpen: true, timeStart: "11:00", timeEnd: "14:00", tags: ['便當', '排骨', '排隊'] },
-  
+
   // === 100-200m (青島東路周邊/林森南路/鎮江街) ===
   { id: 35, name: '蘭鄉排骨飯', price: "$$", distance: 120, address: '台北市中正區青島東路25-2號', weekdayOpen: true, timeStart: "10:30", timeEnd: "14:00", tags: ['便當', '排骨', '外送'] },
   { id: 2, name: '七味軒日式料理', price: "$$", distance: 120, address: '台北市中正區青島東路11-2號', weekdayOpen: true, timeStart: "11:00", timeEnd: "14:00", tags: ['日式', '丼飯', '咖哩'] },
@@ -57,14 +57,14 @@ const REAL_RESTAURANTS_INITIAL = [
   { id: 40, name: '正鋒自助餐', price: "$", distance: 180, address: '台北市中正區林森南路3巷3號', weekdayOpen: true, timeStart: "11:00", timeEnd: "14:00", tags: ['自助餐', '便當', '實惠'] },
   { id: 36, name: '和園川味小吃', price: "$$", distance: 200, address: '台北市中正區紹興南街5-2號', weekdayOpen: true, timeStart: "11:30", timeEnd: "14:00", tags: ['熱炒', '合菜', '川味'] },
   { id: 41, name: '八方雲集 (善導寺店)', price: "$", distance: 200, address: '台北市中正區忠孝東路一段10號', weekdayOpen: true, timeStart: "10:30", timeEnd: "21:00", tags: ['鍋貼', '水餃', '連鎖'] },
-  
+
   // === 200-300m (善導寺捷運/忠孝東路) ===
   { id: 13, name: '雙月食品社', price: "$$", distance: 220, address: '台北市中正區青島東路6之2號', weekdayOpen: true, timeStart: "11:00", timeEnd: "14:15", tags: ['雞湯', '養生', '米其林'] },
   { id: 52, name: '碗粿無刺虱目魚湯', price: "$", distance: 240, address: '台北市中正區紹興南街', weekdayOpen: true, timeStart: "11:00", timeEnd: "20:00", tags: ['小吃', '魚湯', '台式'] },
   { id: 352, name: '麒玲 義大利麵店', price: "$", distance: 250, address: '台北市中正區忠孝東路一段82號', weekdayOpen: true, timeStart: "10:30", timeEnd: "14:00", tags: ['義大利麵', '焗烤', '平價'] },
   { id: 4, name: 'SUBWAY (林森南路)', price: "$$", distance: 280, address: '台北市中正區林森南路10號', weekdayOpen: true, timeStart: "08:00", timeEnd: "22:00", tags: ['輕食', '潛艇堡', '速食'] },
   { id: 42, name: '鬍鬚張魯肉飯 (華山店)', price: "$$", distance: 300, address: '台北市中正區忠孝東路一段150號', weekdayOpen: true, timeStart: "10:30", timeEnd: "22:00", tags: ['魯肉飯', '台式', '連鎖'] },
-  
+
   // === 300-500m (濟南路/杭州南路) ===
   { id: 49, name: '有煎餃子館 (忠杭館)', price: "$$", distance: 450, address: '台北市中正區杭州南路一段10-1號', weekdayOpen: true, timeStart: "11:00", timeEnd: "20:00", tags: ['煎餃', '蒸餃', '麵食'] },
   { id: 26, name: 'CoCo壹番屋 (忠孝店)', price: "$$", distance: 320, address: '台北市中正區忠孝東路一段138號', weekdayOpen: true, timeStart: "11:00", timeEnd: "22:00", tags: ['日式', '咖哩'] },
@@ -76,7 +76,7 @@ const REAL_RESTAURANTS_INITIAL = [
   { id: 53, name: '萃茶風健康餐 (杭州店)', price: "$$", distance: 380, address: '台北市中正區杭州南路一段9-1號', weekdayOpen: true, timeStart: "10:30", timeEnd: "19:30", tags: ['健康餐', '便當', '低GI'] },
   { id: 54, name: 'BONGOUSSE 韓米堡 (華山店)', price: "$", distance: 390, address: '台北市中正區杭州南路一段9之2號', weekdayOpen: true, timeStart: "11:00", timeEnd: "19:00", tags: ['韓式', '米漢堡', '外帶'] },
   { id: 55, name: '古北饕旗艦店', price: "$$$", distance: 390, address: '台北市中正區杭州南路一段9號', weekdayOpen: true, timeStart: "11:00", timeEnd: "21:00", tags: ['湯包', '中式', '高級'] },
-  
+
   // === 400-500m+ ===
   { id: 56, name: '悄悄好食 (杭州南店)', price: "$$", distance: 400, address: '台北市中正區杭州南路一段11巷4號', weekdayOpen: true, timeStart: "08:30", timeEnd: "18:30", tags: ['司康', '甜點', '早午餐'] },
   { id: 44, name: '客美多咖啡 (華山杭南店)', price: "$$", distance: 400, address: '台北市中正區杭州南路一段23-1號', weekdayOpen: true, timeStart: "07:30", timeEnd: "21:00", tags: ['咖啡', '早午餐', '日式'] },
@@ -444,26 +444,26 @@ const LUNCH_WINDOW_END_MINUTES = 13 * 60;
 
 export default function LunchPicker() {
   const navigate = useNavigate();
-  
+
   // 用戶相關
   const [user, setUser] = useState(null);
   const [username, setUsername] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  
+
   // Toast State
   const [toast, setToast] = useState(null);
-  
+
   // 餐廳資料（從 Firebase 載入）
   const [currentRestaurants, setCurrentRestaurants] = useState([]);
   const [filters, setFilters] = useState({ price: "", distance: 500 });
-  
+
   // 輪盤相關
   const canvasRef = useRef(null);
   const [startAngle, setStartAngle] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [winningRestaurant, setWinningRestaurant] = useState(null);
-  
+
   // 惡搞功能狀態
   const [loadingMessage, setLoadingMessage] = useState("COMPUTING...");
   const [runawayBtnStyle, setRunawayBtnStyle] = useState({});
@@ -524,7 +524,7 @@ export default function LunchPicker() {
   const [spinCount, setSpinCount] = useState(0);
   const [isPunishing, setIsPunishing] = useState(false);
   const [punishmentMsg, setPunishmentMsg] = useState('');
-  
+
   // 貓咪狀態
   const [catMode, setCatMode] = useState('hidden'); // 'hidden', 'asking', 'blocking', 'finishing', 'swarm-wait', 'swarm-show'
   const [catMessage, setCatMessage] = useState('');
@@ -537,14 +537,14 @@ export default function LunchPicker() {
   const [myHistory, setMyHistory] = useState([]);
   const [todayLunches, setTodayLunches] = useState([]);
   const [todayStats, setTodayStats] = useState({});
-  
+
   // 漂浮視窗狀態
   const [isFloatingMinimized, setIsFloatingMinimized] = useState(false);
-  
+
   // 地圖狀態管理
   const [openMaps, setOpenMaps] = useState({}); // { restaurantId: boolean }
   const [winnerMapOpen, setWinnerMapOpen] = useState(false);
-  
+
   // 新增餐廳表單
   const [newRestaurant, setNewRestaurant] = useState({
     name: '',
@@ -575,6 +575,7 @@ export default function LunchPicker() {
   const canvasRefFace = useRef(null);
   const detectionIntervalRef = useRef(null);
   const [faceRecommendation, setFaceRecommendation] = useState(null);
+  const [faceScreenshot, setFaceScreenshot] = useState(null); // 儲存面相截圖
 
 
 
@@ -592,7 +593,7 @@ export default function LunchPicker() {
   // 載入餐廳資料
   useEffect(() => {
     if (!isLoggedIn) return;
-    
+
     const restaurantsRef = collection(db, 'artifacts', appId, 'public', 'data', 'restaurants');
     const unsubscribe = onSnapshot(restaurantsRef, async (snapshot) => {
       if (snapshot.empty) {
@@ -609,14 +610,14 @@ export default function LunchPicker() {
         setCurrentRestaurants(restaurants);
       }
     });
-    
+
     return () => unsubscribe();
   }, [isLoggedIn]);
 
   // 載入個人歷史紀錄
   useEffect(() => {
     if (!user || !isLoggedIn) return;
-    
+
     const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'lunchHistory', user.uid, 'records');
     const unsubscribe = onSnapshot(historyRef, (snapshot) => {
       const history = snapshot.docs.map(doc => ({
@@ -626,24 +627,24 @@ export default function LunchPicker() {
       history.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
       setMyHistory(history);
     });
-    
+
     return () => unsubscribe();
   }, [user, isLoggedIn]);
 
   // 監聽今日所有用戶的午餐選擇（即時更新）
   useEffect(() => {
     if (!isLoggedIn) return;
-    
+
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const todayRef = collection(db, 'artifacts', appId, 'public', 'data', 'todayLunches', today, 'selections');
-    
+
     const unsubscribe = onSnapshot(todayRef, (snapshot) => {
       const lunches = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       setTodayLunches(lunches);
-      
+
       // 計算統計
       const stats = {};
       lunches.forEach(lunch => {
@@ -661,7 +662,7 @@ export default function LunchPicker() {
       });
       setTodayStats(stats);
     });
-    
+
     return () => unsubscribe();
   }, [isLoggedIn]);
 
@@ -807,9 +808,9 @@ export default function LunchPicker() {
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
-      
+
       let errorMessage = "無法存取相機";
-      
+
       if (err.message === 'TIMEOUT') {
         setCameraPermissionStatus('timeout');
         errorMessage = "相機權限請求逾時，請重新整理頁面或檢查瀏覽器設定";
@@ -826,7 +827,7 @@ export default function LunchPicker() {
         setCameraPermissionStatus('denied');
         errorMessage = `相機錯誤: ${err.message}`;
       }
-      
+
       setCameraError(errorMessage);
       setToast({ message: errorMessage, type: "error" });
     }
@@ -838,7 +839,7 @@ export default function LunchPicker() {
       clearInterval(detectionIntervalRef.current);
       detectionIntervalRef.current = null;
     }
-    
+
     // Stop camera stream
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
@@ -873,8 +874,8 @@ export default function LunchPicker() {
 
         // Use optimized detection options for better accuracy and speed
         const detections = await faceapi.detectAllFaces(
-          video, 
-          new faceapi.TinyFaceDetectorOptions({ 
+          video,
+          new faceapi.TinyFaceDetectorOptions({
             inputSize: 416,
             scoreThreshold: 0.5
           })
@@ -884,25 +885,25 @@ export default function LunchPicker() {
           .withAgeAndGender();
 
         const resizedDetections = faceapi.resizeResults(detections, displaySize);
-        
+
         // Always clear canvas
         const context = canvas.getContext('2d');
         context.clearRect(0, 0, canvas.width, canvas.height);
-        
+
         // Log detection status
         console.log(`[Face Detection] Detected ${detections.length} face(s)`);
-        
-        // Draw detections if found
+
+        // Draw detections if found (only boxes, no text labels)
         if (resizedDetections && resizedDetections.length > 0) {
           faceapi.draw.drawDetections(canvas, resizedDetections);
-          faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+          // 不繪製表情文字，只保留偵測框
         }
 
         // Update face data if detected
         if (detections.length > 0) {
           const detection = detections[0];
           const { age, gender, expressions } = detection;
-          
+
           // Find dominant expression
           const sortedExpressions = Object.entries(expressions).sort((a, b) => b[1] - a[1]);
           const dominantExpression = sortedExpressions[0][0];
@@ -912,7 +913,7 @@ export default function LunchPicker() {
             gender,
             expression: dominantExpression
           };
-          
+
           console.log('[Face Detection] Data:', newFaceData);
           setFaceData(newFaceData);
         } else {
@@ -924,17 +925,17 @@ export default function LunchPicker() {
         console.error('[Face Detection] Error:', error);
         // Don't stop the interval on error, just log it and continue
       }
-    }, 200);
+    }, 2000); // 偵測頻率改為 2 秒
   };
 
   const freezeFace = () => {
     setIsFaceFrozen(true);
-    
+
     // Pause the video to freeze the frame
     if (videoRef.current) {
       videoRef.current.pause();
     }
-    
+
     // Stop detection
     if (detectionIntervalRef.current) {
       clearInterval(detectionIntervalRef.current);
@@ -944,12 +945,12 @@ export default function LunchPicker() {
 
   const unfreezeFace = () => {
     setIsFaceFrozen(false);
-    
+
     // Resume the video
     if (videoRef.current && videoRef.current.paused) {
       videoRef.current.play();
     }
-    
+
     // Restart detection
     if (videoRef.current && !videoRef.current.ended) {
       handleVideoPlay();
@@ -958,11 +959,23 @@ export default function LunchPicker() {
 
   const generateFaceRecommendation = () => {
     if (!faceData) return;
-    
+
+    // 擷取視訊畫面截圖
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const screenshotCanvas = document.createElement('canvas');
+      screenshotCanvas.width = video.videoWidth || 640;
+      screenshotCanvas.height = video.videoHeight || 480;
+      const ctx = screenshotCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, screenshotCanvas.width, screenshotCanvas.height);
+      const screenshot = screenshotCanvas.toDataURL('image/jpeg', 0.8);
+      setFaceScreenshot(screenshot);
+    }
+
     // Logic for recommendation
     let moodText = "";
     let recommendTags = [];
-    
+
     switch (faceData.expression) {
       case 'happy':
         moodText = "看你看起來心情不錯，吃點好的犒賞自己！";
@@ -994,22 +1007,22 @@ export default function LunchPicker() {
     }
 
     // Filter restaurants
-    let candidates = currentRestaurants.filter(r => 
+    let candidates = currentRestaurants.filter(r =>
       r.tags.some(tag => recommendTags.includes(tag))
     );
-    
+
     if (candidates.length === 0) {
       candidates = currentRestaurants; // Fallback to all
     }
-    
+
     const randomRestaurant = candidates[Math.floor(Math.random() * candidates.length)];
-    
+
     setFaceRecommendation({
       restaurant: randomRestaurant,
       reason: moodText,
       details: `偵測到：${faceData.gender === 'male' ? '男性' : '女性'}, 約 ${faceData.age} 歲, 表情: ${translateEmotion(faceData.expression)}`
     });
-    
+
     // Stop video after recommendation
     stopVideo();
   };
@@ -1029,9 +1042,9 @@ export default function LunchPicker() {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!username.trim() || !user || isLoggingIn) return;
-    
+
     setIsLoggingIn(true);
-    
+
     try {
       // 將用戶資料儲存到 Firebase（與滷味系統共用路徑）
       // 注意：同一瀏覽器的匿名登入會共用同一個 UID
@@ -1042,7 +1055,7 @@ export default function LunchPicker() {
         lastLogin: serverTimestamp(),
         userId: user.uid
       }, { merge: true });
-      
+
       setIsLoggedIn(true);
     } catch (err) {
       console.error("Login error:", err);
@@ -1061,7 +1074,7 @@ export default function LunchPicker() {
     const currentMinutes = hour * 60 + minute;
     const isWeekday = day >= TARGET_DAY_MIN && day <= TARGET_DAY_MAX;
     const isLunchTimeWindow = isWeekday && currentMinutes >= LUNCH_WINDOW_START_MINUTES && currentMinutes < LUNCH_WINDOW_END_MINUTES;
-    
+
     return {
       isLunchTimeWindow,
       day,
@@ -1076,7 +1089,7 @@ export default function LunchPicker() {
     const startMinutes = startHour * 60 + startMin;
     const endMinutes = endHour * 60 + endMin;
     const { day } = getCurrentTimeStatus();
-    
+
     if (day < TARGET_DAY_MIN || day > TARGET_DAY_MAX) return false;
     return startMinutes < LUNCH_WINDOW_END_MINUTES && endMinutes > LUNCH_WINDOW_START_MINUTES;
   };
@@ -1110,7 +1123,7 @@ export default function LunchPicker() {
   };
 
   // --- Review Logic ---
-  
+
   // Open Review Modal
   const handleOpenReview = (restaurant) => {
     setReviewTarget({ id: restaurant.firebaseId, name: restaurant.name });
@@ -1126,7 +1139,7 @@ export default function LunchPicker() {
     try {
       const restaurantRef = doc(db, 'artifacts', appId, 'public', 'data', 'restaurants', reviewTarget.id);
       const reviewsRef = collection(restaurantRef, 'reviews');
-      
+
       // 1. Add Review to Subcollection
       await addDoc(reviewsRef, {
         userId: user.uid,
@@ -1152,7 +1165,7 @@ export default function LunchPicker() {
 
       setToast({ message: "評論發布成功！", type: "success" });
       setShowReviewModal(false);
-      
+
       // If we are in manage view and this restaurant is selected, refresh reviews
       if (selectedRestaurantForManage?.firebaseId === reviewTarget.id) {
         fetchReviews(reviewTarget.id);
@@ -1180,11 +1193,11 @@ export default function LunchPicker() {
 
   // Select Restaurant for Manage View
   useEffect(() => {
-    let unsubscribe = () => {};
+    let unsubscribe = () => { };
     if (selectedRestaurantForManage) {
       unsubscribe = fetchReviews(selectedRestaurantForManage.firebaseId);
     } else {
-        setReviews([]);
+      setReviews([]);
     }
     return () => unsubscribe();
   }, [selectedRestaurantForManage]);
@@ -1213,10 +1226,10 @@ export default function LunchPicker() {
   const drawRouletteWheel = (options) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     const size = window.innerWidth <= 640 ? 250 : 300;
     canvas.width = size;
     canvas.height = size;
@@ -1224,14 +1237,14 @@ export default function LunchPicker() {
     const outsideRadius = size / 2 - 5;
     const textRadius = size / 2 - 30;
     const insideRadius = size / 2 - 100;
-    
+
     ctx.clearRect(0, 0, size, size);
-    
+
     if (options.length === 0) {
       ctx.fillStyle = "#94a3b8";
       ctx.font = 'bold 16px "Noto Sans TC", sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText("無符合條件餐廳", size/2, size/2);
+      ctx.fillText("無符合條件餐廳", size / 2, size / 2);
       drawPointer(size, outsideRadius, ctx);
       return;
     }
@@ -1247,8 +1260,8 @@ export default function LunchPicker() {
       ctx.fillStyle = COLORS[i % COLORS.length];
 
       ctx.beginPath();
-      ctx.arc(size/2, size/2, outsideRadius, angle, angle + arc, false);
-      ctx.arc(size/2, size/2, insideRadius, angle + arc, angle, true);
+      ctx.arc(size / 2, size / 2, outsideRadius, angle, angle + arc, false);
+      ctx.arc(size / 2, size / 2, insideRadius, angle + arc, angle, true);
       ctx.stroke();
       ctx.fill();
 
@@ -1256,10 +1269,10 @@ export default function LunchPicker() {
       ctx.fillStyle = "#ffffff";
       ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
       ctx.shadowBlur = 2;
-      
-      const textX = size/2 + Math.cos(angle + arc / 2) * textRadius;
-      const textY = size/2 + Math.sin(angle + arc / 2) * textRadius;
-      
+
+      const textX = size / 2 + Math.cos(angle + arc / 2) * textRadius;
+      const textY = size / 2 + Math.sin(angle + arc / 2) * textRadius;
+
       ctx.translate(textX, textY);
       ctx.rotate(angle + arc / 2 + Math.PI / 2);
       ctx.textAlign = 'center';
@@ -1268,17 +1281,17 @@ export default function LunchPicker() {
     });
 
     drawPointer(size, outsideRadius, ctx);
-    
+
     ctx.beginPath();
-    ctx.arc(size/2, size/2, insideRadius, 0, 2 * Math.PI, false);
+    ctx.arc(size / 2, size / 2, insideRadius, 0, 2 * Math.PI, false);
     ctx.fillStyle = "#e2e8f0";
     ctx.fill();
     ctx.lineWidth = 4;
     ctx.strokeStyle = "#94a3b8";
     ctx.stroke();
-    
+
     ctx.beginPath();
-    ctx.arc(size/2, size/2, 5, 0, 2 * Math.PI, false);
+    ctx.arc(size / 2, size / 2, 5, 0, 2 * Math.PI, false);
     ctx.fillStyle = "#facc15";
     ctx.fill();
   };
@@ -1309,7 +1322,7 @@ export default function LunchPicker() {
       setWinningRestaurant(null);
       setRunawayBtnStyle({});
       setSpinCount(prev => prev + 1);
-      
+
       // 啟動無限旋轉
       startInfiniteSpin();
       return;
@@ -1372,7 +1385,7 @@ export default function LunchPicker() {
     // 如果沒有傳入 interval，就自己開一個新的（為了保持一致性，雖然可能不需要）
     let msgInterval = messageIntervalToClear;
     if (!msgInterval) {
-       msgInterval = setInterval(() => {
+      msgInterval = setInterval(() => {
         setLoadingMessage(FUNNY_LOADING_MESSAGES[Math.floor(Math.random() * FUNNY_LOADING_MESSAGES.length)]);
       }, 800);
     }
@@ -1384,24 +1397,24 @@ export default function LunchPicker() {
     const winnerCenterDrawAngle = winnerCenterAngle + Math.PI;
     let rotationNeeded = pointerAngle - winnerCenterDrawAngle;
     rotationNeeded = (rotationNeeded % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI);
-    
+
     // 確保至少轉 3 圈，並且從當前角度平滑接續
     // currentStartAngle 是目前的角度 (0 ~ 2PI)
     // 我們要轉到 targetAngle
-    
+
     const fullRotations = 3 * 2 * Math.PI;
     // 計算目標角度：當前角度 + 至少3圈 + 補足到贏家角度的差值
     // 這裡簡化計算：直接重設動畫起點為 0 (視覺上會跳一下，但因為在轉動中可能還好)
     // 為了平滑，我們應該基於 currentStartAngle 計算
-    
+
     // 簡單做法：直接用之前的邏輯，但是起始角度設為 currentStartAngle
     // 這樣 easeOut 會從 currentStartAngle 開始算
     // 但 easeOut 公式是 0 -> 1，所以我們要算 delta
-    
+
     const targetDelta = fullRotations + rotationNeeded;
     const randomOffset = (Math.random() * arc / 3) - (arc / 6);
     const totalRotation = targetDelta + randomOffset;
-    
+
     const duration = 4000;
     const startTime = Date.now();
     const initialAngle = currentStartAngle;
@@ -1421,7 +1434,7 @@ export default function LunchPicker() {
         // 不清理貓咪狀態，讓貓咪軍團永久存在
         return;
       }
-      
+
       const progress = elapsed / duration;
       const easeOut = ((-Math.cos(progress * Math.PI) / 2) + 0.5);
       setStartAngle(initialAngle + (easeOut * totalRotation));
@@ -1438,18 +1451,18 @@ export default function LunchPicker() {
     if (type === 'rude') {
       // 1. 先讓原本的貓咪滑走 (消失)
       setCatMode('finishing');
-      
+
       // 2. 等待滑走後，準備 5 隻貓咪
       setTimeout(() => {
         // 隨機打亂罵人的話，確保每隻貓咪的話都不同
         const shuffledMsgs = [...CAT_RUDE_RESPONSES].sort(() => 0.5 - Math.random()).slice(0, 5);
-        
+
         // 生成隨機位置和入場方向
         const newSwarm = Array(5).fill(0).map((_, i) => {
           // 隨機生成起始方向 (上下左右)
           const directions = ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
           const randomDir = directions[Math.floor(Math.random() * directions.length)];
-          
+
           return {
             id: i,
             msg: shuffledMsgs[i],
@@ -1462,14 +1475,14 @@ export default function LunchPicker() {
             scale: 1.0 + Math.random() * 0.3, // 1.0 ~ 1.3
           };
         });
-        
+
         setSwarmData(newSwarm);
         setCatMode('swarm-wait');
 
         // 3. 依序讓貓咪出現 (每隻間隔 800ms)
         newSwarm.forEach((cat, index) => {
           setTimeout(() => {
-            setSwarmData(prev => 
+            setSwarmData(prev =>
               prev.map(c => c.id === cat.id ? { ...c, visible: true } : c)
             );
           }, index * 800);
@@ -1490,11 +1503,11 @@ export default function LunchPicker() {
       // 是的喵喵大人 -> 貓咪離開，結束旋轉
       setCatMode('finishing');
       setTimeout(() => {
-          finishSpin(startAngle);
-          // 重置貓咪狀態，讓下次可以繼續轉
-          setTimeout(() => {
-            setCatMode('hidden');
-          }, 500);
+        finishSpin(startAngle);
+        // 重置貓咪狀態，讓下次可以繼續轉
+        setTimeout(() => {
+          setCatMode('hidden');
+        }, 500);
       }, 1000);
     }
   }, [startAngle]);
@@ -1505,51 +1518,51 @@ export default function LunchPicker() {
   const handleRunawayHover = (e) => {
     // 如果已經逃跑 6 次，就不再逃跑
     if (runawayCount >= 6) return;
-    
+
     // 增加逃跑次數
     setRunawayCount(prev => prev + 1);
-    
+
     // 取得按鈕當前的 DOM 元素
     const btn = e.target.getBoundingClientRect();
     const btnWidth = btn.width;
     const btnHeight = btn.height;
-    
+
     // 取得滑鼠位置 (相對於視窗)
     const mouseX = e.clientX;
     const mouseY = e.clientY;
-    
+
     // 視窗大小
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-    
+
     // 限制移動範圍在視窗內，並保留一些邊距
     const padding = 20;
     const minX = padding;
     const maxX = windowWidth - btnWidth - padding;
     const minY = padding;
     const maxY = windowHeight - btnHeight - padding;
-    
+
     let newX, newY;
     let attempts = 0;
-    
+
     // 嘗試找到一個合適的新位置
     do {
       // 隨機生成新位置 (絕對座標)
       // 這裡我們不使用 transform translate 的相對位移，而是改用 fixed positioning 的絕對位移
       // 這樣比較好控制在視窗內
-      
+
       // 策略：有時候跑遠一點，有時候跑近一點
       const isCloseJump = Math.random() > 0.3; // 70% 機率跑近一點
-      
+
       if (isCloseJump) {
         // 跑近一點：在目前位置附近隨機移動，但要避開滑鼠
         const jumpRange = 150; // 短距離跳躍範圍
         const currentBtnX = btn.left;
         const currentBtnY = btn.top;
-        
+
         const offsetX = (Math.random() - 0.5) * 2 * jumpRange;
         const offsetY = (Math.random() - 0.5) * 2 * jumpRange;
-        
+
         newX = Math.max(minX, Math.min(maxX, currentBtnX + offsetX));
         newY = Math.max(minY, Math.min(maxY, currentBtnY + offsetY));
       } else {
@@ -1557,22 +1570,22 @@ export default function LunchPicker() {
         newX = Math.random() * (maxX - minX) + minX;
         newY = Math.random() * (maxY - minY) + minY;
       }
-      
+
       // 檢查新位置是否會跟滑鼠重疊 (給予一個安全半徑)
       const safeRadius = 100; // 滑鼠周圍 100px 內不落腳
       const btnCenterX = newX + btnWidth / 2;
       const btnCenterY = newY + btnHeight / 2;
       const distToMouse = Math.sqrt(Math.pow(btnCenterX - mouseX, 2) + Math.pow(btnCenterY - mouseY, 2));
-      
+
       if (distToMouse > safeRadius) break;
-      
+
       attempts++;
     } while (attempts < 10); // 嘗試 10 次，如果都失敗就用最後一次的結果
-    
+
     // 如果嘗試多次都失敗（極端情況），強制移動到滑鼠對角線位置
     if (attempts >= 10) {
-        newX = mouseX < windowWidth / 2 ? windowWidth - btnWidth - padding : padding;
-        newY = mouseY < windowHeight / 2 ? windowHeight - btnHeight - padding : padding;
+      newX = mouseX < windowWidth / 2 ? windowWidth - btnWidth - padding : padding;
+      newY = mouseY < windowHeight / 2 ? windowHeight - btnHeight - padding : padding;
     }
 
     setRunawayBtnStyle({
@@ -1609,7 +1622,7 @@ export default function LunchPicker() {
     setCurrentQuestionIndex(randomIndex);
     setShowQuizModal(true);
     setHasChangedQuestion(false);
-    
+
     // 暫停影片
     if (playerRef.current && playerRef.current.pauseVideo) {
       playerRef.current.pauseVideo();
@@ -1623,7 +1636,7 @@ export default function LunchPicker() {
       do {
         newIndex = Math.floor(Math.random() * quizQuestions.length);
       } while (newIndex === currentQuestionIndex); // 確保不會抽到相同的題目
-      
+
       setCurrentQuestionIndex(newIndex);
       setHasChangedQuestion(true);
       setQuizResult(null);
@@ -1651,19 +1664,19 @@ export default function LunchPicker() {
     setQuizResult(null);
     setWrongAnswer(null);
     setShowCouponText(true);
-    
+
     // 恢復播放影片（雖然已經要顯示優惠券文字了）
     if (playerRef.current && playerRef.current.playVideo) {
       playerRef.current.playVideo();
     }
   };
-  
+
   // 關閉測驗視窗（不領取優惠券）
   const handleCloseQuiz = () => {
     setShowQuizModal(false);
     setQuizResult(null);
     setWrongAnswer(null);
-    
+
     // 恢復播放影片
     if (playerRef.current && playerRef.current.playVideo) {
       playerRef.current.playVideo();
@@ -1687,10 +1700,10 @@ export default function LunchPicker() {
   // 儲存中獎餐廳到 Firebase
   const saveWinningRestaurant = async (restaurant) => {
     if (!user || !username) return;
-    
+
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
       // 儲存到個人歷史
       const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'lunchHistory', user.uid, 'records');
       await addDoc(historyRef, {
@@ -1701,7 +1714,7 @@ export default function LunchPicker() {
         userId: user.uid,
         username: username
       });
-      
+
       // 儲存到今日選擇（供其他人查看）
       const todayRef = doc(db, 'artifacts', appId, 'public', 'data', 'todayLunches', today, 'selections', user.uid);
       await setDoc(todayRef, {
@@ -1711,7 +1724,7 @@ export default function LunchPicker() {
         userId: user.uid,
         username: username
       });
-      
+
       // Toast 已經在轉盤結束時立即顯示，這裡不再顯示
     } catch (err) {
       console.error('儲存失敗:', err);
@@ -1722,12 +1735,12 @@ export default function LunchPicker() {
   // 新增餐廳
   const handleAddRestaurant = async (e) => {
     e.preventDefault();
-    
+
     if (!newRestaurant.name.trim()) {
       setToast({ message: '請輸入餐廳名稱', type: 'error' });
       return;
     }
-    
+
     try {
       const restaurantsRef = collection(db, 'artifacts', appId, 'public', 'data', 'restaurants');
       await addDoc(restaurantsRef, {
@@ -1736,7 +1749,7 @@ export default function LunchPicker() {
         createdAt: serverTimestamp(),
         createdBy: username
       });
-      
+
       setToast({ message: '✅ 餐廳新增成功！', type: 'success' });
       setShowAddRestaurant(false);
       setNewRestaurant({
@@ -1758,7 +1771,7 @@ export default function LunchPicker() {
   // 刪除餐廳
   const handleDeleteRestaurant = async (firebaseId) => {
     if (!window.confirm('確定要刪除這間餐廳嗎？')) return;
-    
+
     try {
       const restaurantRef = doc(db, 'artifacts', appId, 'public', 'data', 'restaurants', firebaseId);
       await deleteDoc(restaurantRef);
@@ -1784,7 +1797,7 @@ export default function LunchPicker() {
             <Home className="w-4 h-4" />
             返回首頁
           </button>
-          
+
           <div className="text-center mb-8">
             <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
               <MapPin className="w-10 h-10 text-blue-700" />
@@ -1792,7 +1805,7 @@ export default function LunchPicker() {
             <h1 className="text-3xl font-bold text-gray-800">午餐吃什麼</h1>
             <p className="text-gray-500 mt-2">選擇困難症的救星！</p>
           </div>
-          
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">請問怎麼稱呼？</label>
@@ -1805,7 +1818,7 @@ export default function LunchPicker() {
                 required
               />
               <p className="text-xs text-gray-400 mt-1">
-                * 與阿嬌滷味共用帳號，同一瀏覽器會共用同一個帳號<br/>
+                * 與阿嬌滷味共用帳號，同一瀏覽器會共用同一個帳號<br />
                 * 若要使用不同帳號，請使用無痕模式或其他瀏覽器
               </p>
             </div>
@@ -1868,107 +1881,102 @@ export default function LunchPicker() {
         <>
           {/* 單隻貓咪 (Asking / Finishing) */}
           {['asking', 'finishing', 'blocking'].includes(catMode) && (
-            <div className={`fixed z-[10000] transition-all duration-1000 ease-in-out ${
-                catMode === 'blocking' 
-                ? 'left-1/2 bottom-1/2 -translate-x-1/2 translate-y-1/2'
-                : catMode === 'finishing' 
-                    ? '-left-[600px] -bottom-[600px]' 
-                    : 'left-0 bottom-0 cat-enter'
-            }`}>
-                <div className="relative flex flex-col items-center">
+            <div className={`fixed z-[10000] transition-all duration-1000 ease-in-out ${catMode === 'blocking'
+              ? 'left-1/2 bottom-1/2 -translate-x-1/2 translate-y-1/2'
+              : catMode === 'finishing'
+                ? '-left-[600px] -bottom-[600px]'
+                : 'left-0 bottom-0 cat-enter'
+              }`}>
+              <div className="relative flex flex-col items-center">
                 {/* 對話框 */}
-                <div className={`absolute -top-32 left-1/2 -translate-x-1/2 p-6 rounded-2xl shadow-xl border-2 w-72 z-20 transition-all duration-300 ${
-                    catMode === 'blocking' ? 'bg-white border-red-500' : 'bg-white border-slate-200'
-                }`}>
-                    <p className={`font-bold text-lg text-center leading-relaxed ${
-                        catMode === 'blocking' ? 'text-red-600' : 'text-slate-700'
+                <div className={`absolute -top-32 left-1/2 -translate-x-1/2 p-6 rounded-2xl shadow-xl border-2 w-72 z-20 transition-all duration-300 ${catMode === 'blocking' ? 'bg-white border-red-500' : 'bg-white border-slate-200'
+                  }`}>
+                  <p className={`font-bold text-lg text-center leading-relaxed ${catMode === 'blocking' ? 'text-red-600' : 'text-slate-700'
                     }`}>{catMessage}</p>
-                    {/* 對話框箭頭 */}
-                    <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 border-b-2 border-r-2 transform rotate-45 translate-y-2.5 bg-white ${
-                        catMode === 'blocking' ? 'border-red-500' : 'border-slate-200'
+                  {/* 對話框箭頭 */}
+                  <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 border-b-2 border-r-2 transform rotate-45 translate-y-2.5 bg-white ${catMode === 'blocking' ? 'border-red-500' : 'border-slate-200'
                     }`}></div>
                 </div>
-                
+
                 {/* 貓咪 GIF */}
-                <img 
-                    src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbzk0bzNmcHp3MzYycGZzMThuMnl3MnQ2YXlsemJoNTk4b29zODFyOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/tR1ZZeJXR9RUDvaFVP/giphy.gif" 
-                    alt="Judging Cat" 
-                    className={`relative z-10 h-auto drop-shadow-2xl transition-all duration-300 w-[400px] sm:w-[450px]`}
+                <img
+                  src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbzk0bzNmcHp3MzYycGZzMThuMnl3MnQ2YXlsemJoNTk4b29zODFyOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/tR1ZZeJXR9RUDvaFVP/giphy.gif"
+                  alt="Judging Cat"
+                  className={`relative z-10 h-auto drop-shadow-2xl transition-all duration-300 w-[400px] sm:w-[450px]`}
                 />
-                </div>
+              </div>
             </div>
           )}
 
           {/* 貓咪軍團 (Swarm) */}
           {catMode === 'swarm-wait' && (
             <div className="fixed inset-0 z-[10000] pointer-events-none overflow-hidden">
-                {swarmData.map((cat) => {
-                    // 根據方向決定起始位置
-                    let startPos = '';
-                    switch(cat.direction) {
-                        case 'top':
-                            startPos = 'left-1/2 -top-[600px] -translate-x-1/2';
-                            break;
-                        case 'bottom':
-                            startPos = 'left-1/2 -bottom-[600px] -translate-x-1/2';
-                            break;
-                        case 'left':
-                            startPos = '-left-[600px] top-1/2 -translate-y-1/2';
-                            break;
-                        case 'right':
-                            startPos = '-right-[600px] top-1/2 -translate-y-1/2';
-                            break;
-                        case 'top-left':
-                            startPos = '-left-[600px] -top-[600px]';
-                            break;
-                        case 'top-right':
-                            startPos = '-right-[600px] -top-[600px]';
-                            break;
-                        case 'bottom-left':
-                            startPos = '-left-[600px] -bottom-[600px]';
-                            break;
-                        case 'bottom-right':
-                            startPos = '-right-[600px] -bottom-[600px]';
-                            break;
-                        default:
-                            startPos = 'left-1/2 -top-[600px]';
-                    }
-                    
-                    // 最終位置：靠近中心但有隨機偏移
-                    const finalStyle = cat.visible ? {
-                        left: `calc(50% + ${cat.offsetX}px)`,
-                        top: `calc(50% + ${cat.offsetY}px)`,
-                        transform: `translate(-50%, -50%) rotate(${cat.rotation}deg) scale(${cat.scale})`,
-                        opacity: 1,
-                    } : {};
+              {swarmData.map((cat) => {
+                // 根據方向決定起始位置
+                let startPos = '';
+                switch (cat.direction) {
+                  case 'top':
+                    startPos = 'left-1/2 -top-[600px] -translate-x-1/2';
+                    break;
+                  case 'bottom':
+                    startPos = 'left-1/2 -bottom-[600px] -translate-x-1/2';
+                    break;
+                  case 'left':
+                    startPos = '-left-[600px] top-1/2 -translate-y-1/2';
+                    break;
+                  case 'right':
+                    startPos = '-right-[600px] top-1/2 -translate-y-1/2';
+                    break;
+                  case 'top-left':
+                    startPos = '-left-[600px] -top-[600px]';
+                    break;
+                  case 'top-right':
+                    startPos = '-right-[600px] -top-[600px]';
+                    break;
+                  case 'bottom-left':
+                    startPos = '-left-[600px] -bottom-[600px]';
+                    break;
+                  case 'bottom-right':
+                    startPos = '-right-[600px] -bottom-[600px]';
+                    break;
+                  default:
+                    startPos = 'left-1/2 -top-[600px]';
+                }
 
-                    return (
-                        <div 
-                            key={cat.id}
-                            className={`absolute transition-all duration-1000 ease-out opacity-0 cat-optimized ${
-                                !cat.visible ? startPos : ''
-                            }`}
-                            style={finalStyle}
-                        >
-                            <div className="relative flex flex-col items-center">
-                                {/* 對話框 */}
-                                <div className="absolute -top-20 left-1/2 -translate-x-1/2 p-3 rounded-xl shadow-lg border-2 border-red-500 bg-white w-44 z-20">
-                                    <p className="font-bold text-xs text-center text-red-600 leading-tight">{cat.msg}</p>
-                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 border-b-2 border-r-2 border-red-500 bg-white transform rotate-45 translate-y-2"></div>
-                                </div>
-                                
-                                {/* 貓咪 GIF */}
-                                <img 
-                                    src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbzk0bzNmcHp3MzYycGZzMThuMnl3MnQ2YXlsemJoNTk4b29zODFyOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/tR1ZZeJXR9RUDvaFVP/giphy.gif" 
-                                    alt="Judging Cat" 
-                                    className="relative z-10 h-auto w-[300px]"
-                                    loading="eager"
-                                    decoding="async"
-                                />
-                            </div>
-                        </div>
-                    );
-                })}
+                // 最終位置：靠近中心但有隨機偏移
+                const finalStyle = cat.visible ? {
+                  left: `calc(50% + ${cat.offsetX}px)`,
+                  top: `calc(50% + ${cat.offsetY}px)`,
+                  transform: `translate(-50%, -50%) rotate(${cat.rotation}deg) scale(${cat.scale})`,
+                  opacity: 1,
+                } : {};
+
+                return (
+                  <div
+                    key={cat.id}
+                    className={`absolute transition-all duration-1000 ease-out opacity-0 cat-optimized ${!cat.visible ? startPos : ''
+                      }`}
+                    style={finalStyle}
+                  >
+                    <div className="relative flex flex-col items-center">
+                      {/* 對話框 */}
+                      <div className="absolute -top-20 left-1/2 -translate-x-1/2 p-3 rounded-xl shadow-lg border-2 border-red-500 bg-white w-44 z-20">
+                        <p className="font-bold text-xs text-center text-red-600 leading-tight">{cat.msg}</p>
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 border-b-2 border-r-2 border-red-500 bg-white transform rotate-45 translate-y-2"></div>
+                      </div>
+
+                      {/* 貓咪 GIF */}
+                      <img
+                        src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbzk0bzNmcHp3MzYycGZzMThuMnl3MnQ2YXlsemJoNTk4b29zODFyOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/tR1ZZeJXR9RUDvaFVP/giphy.gif"
+                        alt="Judging Cat"
+                        className="relative z-10 h-auto w-[300px]"
+                        loading="eager"
+                        decoding="async"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -1977,13 +1985,13 @@ export default function LunchPicker() {
             <div className="fixed bottom-0 left-0 right-0 bg-gray-700/90 p-6 z-[9999] flex flex-col items-center justify-center animate-bounce-in">
               <p className="text-white mb-4 font-bold text-lg">貓咪嫌你轉太多次了</p>
               <div className="flex gap-4 w-full max-w-md">
-                <button 
+                <button
                   onClick={() => handleCatResponse('rude')}
                   className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform transition hover:scale-105 active:scale-95"
                 >
                   關貓咪屁事
                 </button>
-                <button 
+                <button
                   onClick={() => handleCatResponse('polite')}
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform transition hover:scale-105 active:scale-95"
                 >
@@ -1992,7 +2000,7 @@ export default function LunchPicker() {
               </div>
             </div>
           )}
-          
+
           {/* 遮罩 (Blocking 模式用) - 已移除背景色 */}
           {catMode === 'blocking' && (
             <div className="fixed inset-0 z-[9997]"></div>
@@ -2003,28 +2011,26 @@ export default function LunchPicker() {
       {/* 懲罰機制 Overlay */}
       {isPunishing && (
         <div className="fixed inset-0 z-[9999] bg-red-600/95 flex flex-col items-center justify-center text-white animate-pulse cursor-not-allowed">
-            <AlertCircle className="w-32 h-32 mb-8 animate-bounce" />
-            <h1 className="text-5xl font-black mb-6 text-center tracking-widest drop-shadow-lg">警告！</h1>
-            <p className="text-3xl font-bold text-center px-4 mb-8 drop-shadow-md">{punishmentMsg}</p>
-            <div className="w-64 h-2 bg-red-800 rounded-full overflow-hidden">
-              <div className="h-full bg-white animate-[width_5s_linear_forwards]" style={{width: '0%'}}></div>
-            </div>
-            <p className="mt-4 text-xl opacity-75 font-mono">SYSTEM_LOCKDOWN: 5s</p>
+          <AlertCircle className="w-32 h-32 mb-8 animate-bounce" />
+          <h1 className="text-5xl font-black mb-6 text-center tracking-widest drop-shadow-lg">警告！</h1>
+          <p className="text-3xl font-bold text-center px-4 mb-8 drop-shadow-md">{punishmentMsg}</p>
+          <div className="w-64 h-2 bg-red-800 rounded-full overflow-hidden">
+            <div className="h-full bg-white animate-[width_5s_linear_forwards]" style={{ width: '0%' }}></div>
+          </div>
+          <p className="mt-4 text-xl opacity-75 font-mono">SYSTEM_LOCKDOWN: 5s</p>
         </div>
       )}
 
       {/* 優惠券影片彈跳視窗 */}
       {showCouponModal && (
-        <div 
-          className={`fixed inset-0 z-[10000] bg-black/70 flex items-center justify-center p-4 transition-opacity duration-300 ${
-            showCouponModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+        <div
+          className={`fixed inset-0 z-[10000] bg-black/70 flex items-center justify-center p-4 transition-opacity duration-300 ${showCouponModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
           onClick={handleCloseCouponModal}
         >
-          <div 
-            className={`bg-white rounded-2xl shadow-2xl max-w-2xl w-full relative transform transition-all duration-300 ${
-              showCouponModal ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
-            }`}
+          <div
+            className={`bg-white rounded-2xl shadow-2xl max-w-2xl w-full relative transform transition-all duration-300 ${showCouponModal ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 關閉按鈕 */}
@@ -2046,7 +2052,7 @@ export default function LunchPicker() {
                 <div className="relative">
                   {/* YouTube 影片容器 */}
                   <div className="aspect-[9/16] max-h-[600px] mx-auto rounded-lg overflow-hidden bg-black">
-                    <div 
+                    <div
                       ref={playerContainerRef}
                       id="youtube-player"
                       className="w-full h-full"
@@ -2059,11 +2065,10 @@ export default function LunchPicker() {
                     <button
                       onClick={handleSkipAd}
                       disabled={!canSkip}
-                      className={`px-4 py-2 font-bold text-sm transition-all duration-200 bg-gray-900/70 text-white ${
-                        canSkip 
-                          ? 'hover:bg-gray-800/80 cursor-pointer' 
-                          : 'cursor-not-allowed opacity-60'
-                      }`}
+                      className={`px-4 py-2 font-bold text-sm transition-all duration-200 bg-gray-900/70 text-white ${canSkip
+                        ? 'hover:bg-gray-800/80 cursor-pointer'
+                        : 'cursor-not-allowed opacity-60'
+                        }`}
                     >
                       {canSkip ? '跳過廣告' : `等待 ${countdown} 秒跳過廣告`}
                     </button>
@@ -2092,15 +2097,13 @@ export default function LunchPicker() {
 
       {/* 測驗彈跳視窗 */}
       {showQuizModal && (
-        <div 
-          className={`fixed inset-0 z-[10001] bg-black/80 flex items-center justify-center p-4 transition-opacity duration-300 ${
-            showQuizModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-        >
-          <div 
-            className={`bg-gradient-to-br from-pink-100 to-purple-100 rounded-2xl shadow-2xl max-w-md w-full p-8 relative transform transition-all duration-300 ${
-              showQuizModal ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+        <div
+          className={`fixed inset-0 z-[10001] bg-black/80 flex items-center justify-center p-4 transition-opacity duration-300 ${showQuizModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
+        >
+          <div
+            className={`bg-gradient-to-br from-pink-100 to-purple-100 rounded-2xl shadow-2xl max-w-md w-full p-8 relative transform transition-all duration-300 ${showQuizModal ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 關閉按鈕 */}
@@ -2116,11 +2119,10 @@ export default function LunchPicker() {
               <button
                 onClick={handleChangeQuestion}
                 disabled={hasChangedQuestion}
-                className={`absolute bottom-4 right-4 z-10 px-3 py-2 rounded-lg font-bold text-xs transition-all duration-200 ${
-                  hasChangedQuestion
-                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer'
-                }`}
+                className={`absolute bottom-4 right-4 z-10 px-3 py-2 rounded-lg font-bold text-xs transition-all duration-200 ${hasChangedQuestion
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer'
+                  }`}
                 title={hasChangedQuestion ? '已使用過換題機會' : '更換題目（僅限一次）'}
               >
                 {hasChangedQuestion ? '已換題' : '免費換題一次'}
@@ -2136,13 +2138,13 @@ export default function LunchPicker() {
             {/* 圖片（如果有的話） */}
             {quizQuestions[currentQuestionIndex].image && (
               <div className="mb-4 flex justify-center">
-                <img 
+                <img
                   src={
                     quizResult === 'correct' && quizQuestions[currentQuestionIndex].answerImage
                       ? quizQuestions[currentQuestionIndex].answerImage
                       : quizQuestions[currentQuestionIndex].image
-                  } 
-                  alt="題目圖片" 
+                  }
+                  alt="題目圖片"
                   className="max-w-full max-h-48 rounded-lg shadow-md"
                   onError={(e) => {
                     e.target.style.display = 'none';
@@ -2159,13 +2161,12 @@ export default function LunchPicker() {
                   key={index}
                   onClick={() => handleQuizAnswer(option)}
                   disabled={quizResult === 'correct'}
-                  className={`font-bold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 text-xl border-2 ${
-                    wrongAnswer === option
-                      ? 'bg-red-500 text-white border-red-600'
-                      : option === quizQuestions[currentQuestionIndex].correctAnswer && quizResult === 'correct'
+                  className={`font-bold py-4 px-6 rounded-xl shadow-lg transform transition-all duration-200 text-xl border-2 ${wrongAnswer === option
+                    ? 'bg-red-500 text-white border-red-600'
+                    : option === quizQuestions[currentQuestionIndex].correctAnswer && quizResult === 'correct'
                       ? 'bg-green-500 text-white border-green-600'
                       : 'bg-white hover:bg-purple-500 hover:text-white text-purple-800 border-purple-300 hover:border-purple-600 hover:scale-105 active:scale-95'
-                  } ${quizResult === 'correct' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    } ${quizResult === 'correct' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   {option}
                 </button>
@@ -2178,7 +2179,7 @@ export default function LunchPicker() {
                 <p className="text-red-600 font-bold text-lg">❌ 答錯了！請再試一次</p>
               </div>
             )}
-            
+
             {quizResult === 'correct' && (
               <div className="text-center mb-4">
                 <p className="text-green-600 font-bold text-lg mb-4">✅ 答對了！</p>
@@ -2195,13 +2196,13 @@ export default function LunchPicker() {
       )}
 
       {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast(null)} 
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
-      
+
       {/* 新增餐廳 Modal */}
       {showAddRestaurant && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -2212,7 +2213,7 @@ export default function LunchPicker() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <form onSubmit={handleAddRestaurant} className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -2220,17 +2221,17 @@ export default function LunchPicker() {
                   <input
                     type="text"
                     value={newRestaurant.name}
-                    onChange={(e) => setNewRestaurant({...newRestaurant, name: e.target.value})}
+                    onChange={(e) => setNewRestaurant({ ...newRestaurant, name: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">價格區間</label>
                   <select
                     value={newRestaurant.price}
-                    onChange={(e) => setNewRestaurant({...newRestaurant, price: e.target.value})}
+                    onChange={(e) => setNewRestaurant({ ...newRestaurant, price: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="$">$ (實惠)</option>
@@ -2238,61 +2239,61 @@ export default function LunchPicker() {
                     <option value="$$$">$$$ (高級)</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">距離 (公尺)</label>
                   <input
                     type="number"
                     value={newRestaurant.distance}
-                    onChange={(e) => setNewRestaurant({...newRestaurant, distance: parseInt(e.target.value)})}
+                    onChange={(e) => setNewRestaurant({ ...newRestaurant, distance: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     min="0"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">工作日營業</label>
                   <select
                     value={newRestaurant.weekdayOpen}
-                    onChange={(e) => setNewRestaurant({...newRestaurant, weekdayOpen: e.target.value === 'true'})}
+                    onChange={(e) => setNewRestaurant({ ...newRestaurant, weekdayOpen: e.target.value === 'true' })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="true">是</option>
                     <option value="false">否</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">營業開始</label>
                   <input
                     type="time"
                     value={newRestaurant.timeStart}
-                    onChange={(e) => setNewRestaurant({...newRestaurant, timeStart: e.target.value})}
+                    onChange={(e) => setNewRestaurant({ ...newRestaurant, timeStart: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">營業結束</label>
                   <input
                     type="time"
                     value={newRestaurant.timeEnd}
-                    onChange={(e) => setNewRestaurant({...newRestaurant, timeEnd: e.target.value})}
+                    onChange={(e) => setNewRestaurant({ ...newRestaurant, timeEnd: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">地址</label>
                 <input
                   type="text"
                   value={newRestaurant.address}
-                  onChange={(e) => setNewRestaurant({...newRestaurant, address: e.target.value})}
+                  onChange={(e) => setNewRestaurant({ ...newRestaurant, address: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
@@ -2312,7 +2313,7 @@ export default function LunchPicker() {
           </div>
         </div>
       )}
-      
+
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10 border border-slate-200">
         {/* 頂部導覽 */}
         <div className="flex justify-between items-center mb-4">
@@ -2323,7 +2324,7 @@ export default function LunchPicker() {
             <Home className="w-4 h-4" />
             返回首頁
           </button>
-          
+
           <div className="flex items-center gap-2 text-sm">
             <User className="w-4 h-4 text-slate-600" />
             <span className="text-slate-600">Hi, <span className="font-bold text-blue-600">{username}</span></span>
@@ -2338,40 +2339,49 @@ export default function LunchPicker() {
             </button>
           </div>
         </div>
-        
+
         {/* 功能按鈕列 */}
         <div className="flex flex-wrap gap-2 mb-6">
           <button
             onClick={() => setCurrentView('main')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-              currentView === 'main' 
-                ? 'bg-blue-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${currentView === 'main'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             <Compass className="w-4 h-4" />
             輪盤
           </button>
-          
+
+
+          <button
+            onClick={() => setCurrentView('face')}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${currentView === 'face'
+              ? 'bg-purple-600 text-white shadow-md'
+              : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+              }`}
+          >
+            <User className="w-4 h-4" />
+            看面相
+          </button>
+
           <button
             onClick={() => setCurrentView('manage')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-              currentView === 'manage' 
-                ? 'bg-blue-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${currentView === 'manage'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             <List className="w-4 h-4" />
             管理餐廳
           </button>
-          
+
           <button
             onClick={() => setCurrentView('history')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-              currentView === 'history' 
-                ? 'bg-blue-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${currentView === 'history'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             <History className="w-4 h-4" />
             我的紀錄
@@ -2381,20 +2391,8 @@ export default function LunchPicker() {
               </span>
             )}
           </button>
-
-          <button
-            onClick={() => setCurrentView('face')}
-            className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-              currentView === 'face' 
-                ? 'bg-purple-600 text-white shadow-md' 
-                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-            }`}
-          >
-            <User className="w-4 h-4" />
-            看面相
-          </button>
         </div>
-        
+
         {/* 漂浮統計按鈕 - 固定在左上角 (在看面相時隱藏) */}
         {currentView !== 'face' && !isFloatingMinimized ? (
           <div className="fixed top-4 left-4 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 w-80 max-h-[80vh] overflow-hidden">
@@ -2410,7 +2408,7 @@ export default function LunchPicker() {
                 <ChevronUp className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-4 max-h-[calc(80vh-60px)] overflow-y-auto">
               {/* 今日動態 */}
               <div>
@@ -2457,8 +2455,8 @@ export default function LunchPicker() {
             )}
           </button>
         ) : null}
-        
-        
+
+
         {/* 標題 */}
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 pb-1 border-b-2 border-blue-500 inline-block">
           午餐吃什麼(･ω´･ )
@@ -2468,11 +2466,10 @@ export default function LunchPicker() {
         </p>
 
         {/* 狀態訊息 */}
-        <div className={`mb-6 p-4 rounded-lg text-sm transition-all duration-300 border-l-4 shadow-sm ${
-          isLunchTimeWindow ? 'bg-green-50 border-green-400 text-green-700' :
+        <div className={`mb-6 p-4 rounded-lg text-sm transition-all duration-300 border-l-4 shadow-sm ${isLunchTimeWindow ? 'bg-green-50 border-green-400 text-green-700' :
           (day >= TARGET_DAY_MIN && day <= TARGET_DAY_MAX) ? 'bg-yellow-50 border-yellow-400 text-yellow-700' :
-          'bg-indigo-50 border-indigo-400 text-indigo-700'
-        }`}>
+            'bg-indigo-50 border-indigo-400 text-indigo-700'
+          }`}>
           {isLunchTimeWindow ? (
             <span className="font-bold">【現在是午餐決策時間！】現在時間是 {timeString}，趕快來決定要吃什麼吧！</span>
           ) : (day >= TARGET_DAY_MIN && day <= TARGET_DAY_MAX) ? (
@@ -2485,248 +2482,246 @@ export default function LunchPicker() {
         {/* === 主要輪盤視圖 === */}
         {currentView === 'main' && (
           <>
-        {/* 篩選器 */}
-        <div className="space-y-6 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-200">
-          <h2 className="text-lg font-bold text-slate-700 uppercase tracking-wide mb-4 flex items-center">
-            <Filter className="w-4 h-4 mr-2" /> 篩選參數設定
-          </h2>
+            {/* 篩選器 */}
+            <div className="space-y-6 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-200">
+              <h2 className="text-lg font-bold text-slate-700 uppercase tracking-wide mb-4 flex items-center">
+                <Filter className="w-4 h-4 mr-2" /> 篩選參數設定
+              </h2>
 
-          {/* 價格 */}
-          <div>
-            <label className="block text-slate-500 text-xs font-bold mb-2 uppercase">價格預算</label>
-            <div className="flex flex-wrap gap-3">
-              {['', '$', '$$', '$$$'].map(price => (
-                <button
-                  key={price || 'all'}
-                  onClick={() => setFilters(f => ({ ...f, price }))}
-                  className={`py-2 px-4 rounded transition-all duration-200 border ${
-                    filters.price === price
-                      ? 'bg-blue-600 text-white shadow-md border-blue-700'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {price || '不限'} {price && `(${price === '$' ? '實惠' : price === '$$' ? '中等' : '高級'})`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 距離 */}
-          <div>
-            <label className="block text-slate-500 text-xs font-bold mb-2 uppercase">距離半徑</label>
-            <div className="flex flex-wrap gap-3">
-              {[100, 300, 700, 1000, 2000].map(distance => (
-                <button
-                  key={distance}
-                  onClick={() => setFilters(f => ({ ...f, distance }))}
-                  className={`py-2 px-4 rounded transition-all duration-200 border ${
-                    filters.distance === distance
-                      ? 'bg-blue-600 text-white shadow-md border-blue-700'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {distance === 2000 ? '不限' : distance >= 1000 ? `${distance/1000}km` : `${distance}m`}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 輪盤 */}
-        <div className="mt-8 bg-white p-6 rounded-xl shadow-xl border border-slate-200 relative overflow-hidden">
-          <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-blue-100 rounded-full opacity-50 blur-xl"></div>
-          <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-32 h-32 bg-indigo-100 rounded-full opacity-50 blur-xl"></div>
-
-          <h2 className="text-xl font-bold text-slate-700 mb-6 flex items-center justify-center border-b border-slate-200 pb-4">
-            <Compass className="w-5 h-5 mr-2 text-blue-500" /> 隨機決策引擎 (Randomizer)
-          </h2>
-          
-          <div className="flex flex-col items-center space-y-6">
-            <canvas 
-              ref={canvasRef}
-              width="300" 
-              height="300" 
-              className="rounded-full shadow-2xl border-4 border-slate-300 bg-white"
-            />
-            
-            <button 
-              onClick={spinWheel}
-              disabled={isSpinning || filteredRestaurants.length === 0}
-              className="bg-cyan-500 text-slate-900 font-bold py-3 px-10 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.5)] hover:bg-cyan-400 hover:shadow-[0_0_25px_rgba(6,182,212,0.7)] transition duration-150 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              <Play className="w-4 h-4 mr-2 fill-current" /> 啟動抽籤
-            </button>
-            
-            <div className="min-h-[6rem] flex flex-col items-center justify-center bg-slate-50 p-4 rounded-lg border border-cyan-300 w-full max-w-sm text-center shadow-inner">
-              {isSpinning ? (
-                <>
-                  <p className="text-lg font-bold text-slate-500 uppercase tracking-wider animate-pulse">{loadingMessage}</p>
-                  <Loader className="w-8 h-8 text-blue-500 mt-2 animate-spin" />
-                </>
-              ) : winningRestaurant ? (
-                <>
-                  <p className="text-lg font-bold text-slate-500 uppercase tracking-wider">Decision Made</p>
-                  <button
-                    onClick={() => {
-                      setCurrentView('manage');
-                      setSelectedRestaurantForManage(winningRestaurant);
-                    }}
-                    className="text-3xl sm:text-4xl font-extrabold text-blue-600 animate-pulse mt-1 hover:text-blue-700 transition cursor-pointer underline decoration-2 underline-offset-4"
-                  >
-                    {winningRestaurant.name}
-                  </button>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="flex text-yellow-400 text-lg">
-                      {'★'.repeat(Math.round(winningRestaurant.rating || 0))}
-                      <span className="text-slate-300">{'★'.repeat(5 - Math.round(winningRestaurant.rating || 0))}</span>
-                    </div>
-                    <span className="text-sm text-slate-500">({winningRestaurant.reviewCount || 0} 評論)</span>
-                  </div>
-                  <p className="text-sm text-slate-500 mt-1">{winningRestaurant.address}</p>
-                  
-                  <div className="flex gap-2 mt-4">
-                    {/* 地圖按鈕 */}
+              {/* 價格 */}
+              <div>
+                <label className="block text-slate-500 text-xs font-bold mb-2 uppercase">價格預算</label>
+                <div className="flex flex-wrap gap-3">
+                  {['', '$', '$$', '$$$'].map(price => (
                     <button
-                      onClick={() => setWinnerMapOpen(!winnerMapOpen)}
-                      className="flex items-center justify-center text-white bg-blue-600 border border-blue-700 hover:bg-blue-700 py-2 px-5 rounded-lg transition duration-150 shadow-md text-sm font-bold"
+                      key={price || 'all'}
+                      onClick={() => setFilters(f => ({ ...f, price }))}
+                      className={`py-2 px-4 rounded transition-all duration-200 border ${filters.price === price
+                        ? 'bg-blue-600 text-white shadow-md border-blue-700'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
                     >
-                      <span className="mr-1">{winnerMapOpen ? '隱藏地圖' : '查看地圖'}</span>
-                      <MapPin className="w-4 h-4" />
+                      {price || '不限'} {price && `(${price === '$' ? '實惠' : price === '$$' ? '中等' : '高級'})`}
                     </button>
-
-                    {/* 惡搞：逃跑按鈕 */}
-                    <button
-                      onMouseEnter={handleRunawayHover}
-                      onClick={handleCouponClick}
-                      style={runawayBtnStyle}
-                      className="flex items-center justify-center text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 py-2 px-5 rounded-lg transition duration-150 shadow-md text-sm font-bold"
-                    >
-                      <span className="mr-1">點擊領取優惠券</span>
-                    </button>
-                  </div>
-                  
-                  {/* 地圖容器 */}
-                  {winnerMapOpen && (
-                    <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '200px' }}>
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        frameBorder="0"
-                        loading="lazy"
-                        allowFullScreen
-                        referrerPolicy="no-referrer-when-downgrade"
-                        src={getMapUrl(winningRestaurant.name, winningRestaurant.address)}
-                      />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <p className="text-lg font-bold text-slate-400 uppercase tracking-wider">Ready for Execution</p>
-                  <p className="text-3xl sm:text-4xl font-extrabold text-slate-600 mt-1">---</p>
-                  <p className="text-sm text-slate-500 mt-1">請選擇篩選條件</p>
-                </>
-              )}
-            </div>
-          </div>
-          <p className="text-xs text-slate-400 mt-6 text-center font-mono">
-            * SYSTEM: 輪盤項目基於上方篩選結果自動同步。
-          </p>
-        </div>
-
-        {/* 結果列表 */}
-        <div className="mt-10">
-          <div className="flex justify-between items-end mb-4 border-b border-slate-200 pb-2">
-            <h2 className="text-xl font-bold text-slate-800 flex items-center">
-              <List className="w-5 h-5 mr-2 text-slate-400" /> 搜尋結果
-            </h2>
-            <span className="text-sm text-slate-500 font-mono">
-              Count: <span className="font-bold text-blue-600">{filteredRestaurants.length}</span> / {currentRestaurants.filter(r => isRestaurantOpenForLunch(r)).length}
-            </span>
-          </div>
-          
-          <div className="space-y-4">
-            {filteredRestaurants.length === 0 ? (
-              <div className="p-6 bg-white border border-red-200 text-red-600 rounded-lg text-center font-bold shadow-sm">
-                <AlertCircle className="w-6 h-6 mx-auto mb-2" />
-                無符合條件結果。
+                  ))}
+                </div>
               </div>
-            ) : (
-              filteredRestaurants.map(restaurant => (
-                <div key={restaurant.id} className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm transition duration-200 hover:shadow-md hover:border-blue-300">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded bg-slate-100 text-slate-600 font-bold flex items-center justify-center mr-3 text-sm">
-                          {restaurant.name.charAt(0)}
+
+              {/* 距離 */}
+              <div>
+                <label className="block text-slate-500 text-xs font-bold mb-2 uppercase">距離半徑</label>
+                <div className="flex flex-wrap gap-3">
+                  {[100, 300, 700, 1000, 2000].map(distance => (
+                    <button
+                      key={distance}
+                      onClick={() => setFilters(f => ({ ...f, distance }))}
+                      className={`py-2 px-4 rounded transition-all duration-200 border ${filters.distance === distance
+                        ? 'bg-blue-600 text-white shadow-md border-blue-700'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                    >
+                      {distance === 2000 ? '不限' : distance >= 1000 ? `${distance / 1000}km` : `${distance}m`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 輪盤 */}
+            <div className="mt-8 bg-white p-6 rounded-xl shadow-xl border border-slate-200 relative overflow-hidden">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-blue-100 rounded-full opacity-50 blur-xl"></div>
+              <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-32 h-32 bg-indigo-100 rounded-full opacity-50 blur-xl"></div>
+
+              <h2 className="text-xl font-bold text-slate-700 mb-6 flex items-center justify-center border-b border-slate-200 pb-4">
+                <Compass className="w-5 h-5 mr-2 text-blue-500" /> 隨機決策引擎 (Randomizer)
+              </h2>
+
+              <div className="flex flex-col items-center space-y-6">
+                <canvas
+                  ref={canvasRef}
+                  width="300"
+                  height="300"
+                  className="rounded-full shadow-2xl border-4 border-slate-300 bg-white"
+                />
+
+                <button
+                  onClick={spinWheel}
+                  disabled={isSpinning || filteredRestaurants.length === 0}
+                  className="bg-cyan-500 text-slate-900 font-bold py-3 px-10 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.5)] hover:bg-cyan-400 hover:shadow-[0_0_25px_rgba(6,182,212,0.7)] transition duration-150 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  <Play className="w-4 h-4 mr-2 fill-current" /> 啟動抽籤
+                </button>
+
+                <div className="min-h-[6rem] flex flex-col items-center justify-center bg-slate-50 p-4 rounded-lg border border-cyan-300 w-full max-w-sm text-center shadow-inner">
+                  {isSpinning ? (
+                    <>
+                      <p className="text-lg font-bold text-slate-500 uppercase tracking-wider animate-pulse">{loadingMessage}</p>
+                      <Loader className="w-8 h-8 text-blue-500 mt-2 animate-spin" />
+                    </>
+                  ) : winningRestaurant ? (
+                    <>
+                      <p className="text-lg font-bold text-slate-500 uppercase tracking-wider">Decision Made</p>
+                      <button
+                        onClick={() => {
+                          setCurrentView('manage');
+                          setSelectedRestaurantForManage(winningRestaurant);
+                        }}
+                        className="text-3xl sm:text-4xl font-extrabold text-blue-600 animate-pulse mt-1 hover:text-blue-700 transition cursor-pointer underline decoration-2 underline-offset-4"
+                      >
+                        {winningRestaurant.name}
+                      </button>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex text-yellow-400 text-lg">
+                          {'★'.repeat(Math.round(winningRestaurant.rating || 0))}
+                          <span className="text-slate-300">{'★'.repeat(5 - Math.round(winningRestaurant.rating || 0))}</span>
                         </div>
+                        <span className="text-sm text-slate-500">({winningRestaurant.reviewCount || 0} 評論)</span>
+                      </div>
+                      <p className="text-sm text-slate-500 mt-1">{winningRestaurant.address}</p>
+
+                      <div className="flex gap-2 mt-4">
+                        {/* 地圖按鈕 */}
                         <button
-                          onClick={() => {
-                            setCurrentView('manage');
-                            setSelectedRestaurantForManage(restaurant);
-                          }}
-                          className="text-lg font-bold text-slate-800 hover:text-blue-600 transition cursor-pointer hover:underline"
+                          onClick={() => setWinnerMapOpen(!winnerMapOpen)}
+                          className="flex items-center justify-center text-white bg-blue-600 border border-blue-700 hover:bg-blue-700 py-2 px-5 rounded-lg transition duration-150 shadow-md text-sm font-bold"
                         >
-                          {restaurant.name}
+                          <span className="mr-1">{winnerMapOpen ? '隱藏地圖' : '查看地圖'}</span>
+                          <MapPin className="w-4 h-4" />
+                        </button>
+
+                        {/* 惡搞：逃跑按鈕 */}
+                        <button
+                          onMouseEnter={handleRunawayHover}
+                          onClick={handleCouponClick}
+                          style={runawayBtnStyle}
+                          className="flex items-center justify-center text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 py-2 px-5 rounded-lg transition duration-150 shadow-md text-sm font-bold"
+                        >
+                          <span className="mr-1">點擊領取優惠券</span>
                         </button>
                       </div>
-                      <div className="flex items-center gap-2 mt-1 ml-11">
-                        <div className="flex text-yellow-400 text-sm">
-                          {'★'.repeat(Math.round(restaurant.rating || 0))}
-                          <span className="text-slate-300">{'★'.repeat(5 - Math.round(restaurant.rating || 0))}</span>
+
+                      {/* 地圖容器 */}
+                      {winnerMapOpen && (
+                        <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '200px' }}>
+                          <iframe
+                            width="100%"
+                            height="100%"
+                            frameBorder="0"
+                            loading="lazy"
+                            allowFullScreen
+                            referrerPolicy="no-referrer-when-downgrade"
+                            src={getMapUrl(winningRestaurant.name, winningRestaurant.address)}
+                          />
                         </div>
-                        <span className="text-xs text-slate-500">({restaurant.reviewCount || 0})</span>
-                      </div>
-                      <p className="text-sm text-slate-500 mt-1 ml-11">{restaurant.address}</p>
-                      <p className="text-xs text-slate-400 mt-2 ml-11 flex items-center space-x-2">
-                        <span>{restaurant.timeStart.substring(0, 5)} - {restaurant.timeEnd.substring(0, 5)}</span>
-                        <span className="text-xs font-semibold text-blue-700 bg-blue-50 py-1 px-2 rounded border border-blue-100">OPEN 12-13</span>
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end space-y-2 ml-4">
-                      <div className="flex items-center space-x-2">
-                        <span className={`text-md font-bold ${getPriceColor(restaurant.price)}`}>{restaurant.price}</span>
-                        <span className="text-xs font-mono text-slate-500 bg-slate-100 py-1 px-2 rounded">
-                          {formatDistance(restaurant.distance)}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => toggleMap(restaurant.id)}
-                        className="flex items-center justify-center text-blue-600 bg-white border border-blue-200 hover:bg-blue-50 py-1.5 px-3 rounded-md transition duration-150 shadow-sm group"
-                      >
-                        <span className="text-xs font-bold mr-1">{openMaps[restaurant.id] ? 'HIDE' : '地圖'}</span>
-                        <MapPin className="w-3 h-3 text-blue-600 group-hover:text-blue-700" />
-                      </button>
-                      <button
-                        onClick={() => handleOpenReview(restaurant)}
-                        className="flex items-center justify-center text-yellow-600 bg-white border border-yellow-200 hover:bg-yellow-50 py-1.5 px-3 rounded-md transition duration-150 shadow-sm group"
-                      >
-                        <span className="text-xs font-bold mr-1">評論</span>
-                        <span className="text-xs">★</span>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* 地圖容器 */}
-                  {openMaps[restaurant.id] && (
-                    <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '200px' }}>
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        frameBorder="0"
-                        loading="lazy"
-                        allowFullScreen
-                        referrerPolicy="no-referrer-when-downgrade"
-                        src={getMapUrl(restaurant.name, restaurant.address)}
-                      />
-                    </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-bold text-slate-400 uppercase tracking-wider">Ready for Execution</p>
+                      <p className="text-3xl sm:text-4xl font-extrabold text-slate-600 mt-1">---</p>
+                      <p className="text-sm text-slate-500 mt-1">請選擇篩選條件</p>
+                    </>
                   )}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-        </>
+              </div>
+              <p className="text-xs text-slate-400 mt-6 text-center font-mono">
+                * SYSTEM: 輪盤項目基於上方篩選結果自動同步。
+              </p>
+            </div>
+
+            {/* 結果列表 */}
+            <div className="mt-10">
+              <div className="flex justify-between items-end mb-4 border-b border-slate-200 pb-2">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center">
+                  <List className="w-5 h-5 mr-2 text-slate-400" /> 搜尋結果
+                </h2>
+                <span className="text-sm text-slate-500 font-mono">
+                  Count: <span className="font-bold text-blue-600">{filteredRestaurants.length}</span> / {currentRestaurants.filter(r => isRestaurantOpenForLunch(r)).length}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {filteredRestaurants.length === 0 ? (
+                  <div className="p-6 bg-white border border-red-200 text-red-600 rounded-lg text-center font-bold shadow-sm">
+                    <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+                    無符合條件結果。
+                  </div>
+                ) : (
+                  filteredRestaurants.map(restaurant => (
+                    <div key={restaurant.id} className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm transition duration-200 hover:shadow-md hover:border-blue-300">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 rounded bg-slate-100 text-slate-600 font-bold flex items-center justify-center mr-3 text-sm">
+                              {restaurant.name.charAt(0)}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setCurrentView('manage');
+                                setSelectedRestaurantForManage(restaurant);
+                              }}
+                              className="text-lg font-bold text-slate-800 hover:text-blue-600 transition cursor-pointer hover:underline"
+                            >
+                              {restaurant.name}
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 ml-11">
+                            <div className="flex text-yellow-400 text-sm">
+                              {'★'.repeat(Math.round(restaurant.rating || 0))}
+                              <span className="text-slate-300">{'★'.repeat(5 - Math.round(restaurant.rating || 0))}</span>
+                            </div>
+                            <span className="text-xs text-slate-500">({restaurant.reviewCount || 0})</span>
+                          </div>
+                          <p className="text-sm text-slate-500 mt-1 ml-11">{restaurant.address}</p>
+                          <p className="text-xs text-slate-400 mt-2 ml-11 flex items-center space-x-2">
+                            <span>{restaurant.timeStart.substring(0, 5)} - {restaurant.timeEnd.substring(0, 5)}</span>
+                            <span className="text-xs font-semibold text-blue-700 bg-blue-50 py-1 px-2 rounded border border-blue-100">OPEN 12-13</span>
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end space-y-2 ml-4">
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-md font-bold ${getPriceColor(restaurant.price)}`}>{restaurant.price}</span>
+                            <span className="text-xs font-mono text-slate-500 bg-slate-100 py-1 px-2 rounded">
+                              {formatDistance(restaurant.distance)}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => toggleMap(restaurant.id)}
+                            className="flex items-center justify-center text-blue-600 bg-white border border-blue-200 hover:bg-blue-50 py-1.5 px-3 rounded-md transition duration-150 shadow-sm group"
+                          >
+                            <span className="text-xs font-bold mr-1">{openMaps[restaurant.id] ? 'HIDE' : '地圖'}</span>
+                            <MapPin className="w-3 h-3 text-blue-600 group-hover:text-blue-700" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenReview(restaurant)}
+                            className="flex items-center justify-center text-yellow-600 bg-white border border-yellow-200 hover:bg-yellow-50 py-1.5 px-3 rounded-md transition duration-150 shadow-sm group"
+                          >
+                            <span className="text-xs font-bold mr-1">評論</span>
+                            <span className="text-xs">★</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 地圖容器 */}
+                      {openMaps[restaurant.id] && (
+                        <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '200px' }}>
+                          <iframe
+                            width="100%"
+                            height="100%"
+                            frameBorder="0"
+                            loading="lazy"
+                            allowFullScreen
+                            referrerPolicy="no-referrer-when-downgrade"
+                            src={getMapUrl(restaurant.name, restaurant.address)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
         )}
 
         {/* === 餐廳管理視圖 === */}
@@ -2742,7 +2737,7 @@ export default function LunchPicker() {
                 新增餐廳
               </button>
             </div>
-            
+
             <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
               {/* 左側列表 (4/12) */}
               <div className="md:col-span-4 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
@@ -2751,14 +2746,13 @@ export default function LunchPicker() {
                 </div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                   {currentRestaurants.map(restaurant => (
-                    <div 
-                      key={restaurant.firebaseId} 
+                    <div
+                      key={restaurant.firebaseId}
                       onClick={() => handleSelectRestaurantForManage(restaurant)}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
-                        selectedRestaurantForManage?.firebaseId === restaurant.firebaseId
-                          ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' 
-                          : 'bg-white border-slate-200 hover:border-blue-300'
-                      }`}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${selectedRestaurantForManage?.firebaseId === restaurant.firebaseId
+                        ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500'
+                        : 'bg-white border-slate-200 hover:border-blue-300'
+                        }`}
                     >
                       <div className="flex justify-between items-start">
                         <div>
@@ -2793,20 +2787,20 @@ export default function LunchPicker() {
                   <div className="flex-1 overflow-y-auto">
                     {/* 地圖區塊 */}
                     <div className="h-64 w-full bg-slate-100 relative">
-                       <iframe
-                          width="100%"
-                          height="100%"
-                          frameBorder="0"
-                          loading="lazy"
-                          allowFullScreen
-                          referrerPolicy="no-referrer-when-downgrade"
-                          src={getMapUrl(selectedRestaurantForManage.name, selectedRestaurantForManage.address)}
-                          className="absolute inset-0"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 text-white">
-                          <h3 className="text-2xl font-bold drop-shadow-md">{selectedRestaurantForManage.name}</h3>
-                          <p className="text-sm opacity-90">{selectedRestaurantForManage.address}</p>
-                        </div>
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={getMapUrl(selectedRestaurantForManage.name, selectedRestaurantForManage.address)}
+                        className="absolute inset-0"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 text-white">
+                        <h3 className="text-2xl font-bold drop-shadow-md">{selectedRestaurantForManage.name}</h3>
+                        <p className="text-sm opacity-90">{selectedRestaurantForManage.address}</p>
+                      </div>
                     </div>
 
                     {/* 詳細資訊區塊 */}
@@ -2824,7 +2818,7 @@ export default function LunchPicker() {
                           <span className="text-xs text-slate-500 block uppercase">營業時間</span>
                           <span className="font-bold text-slate-700">{selectedRestaurantForManage.timeStart} - {selectedRestaurantForManage.timeEnd}</span>
                         </div>
-                         <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
+                        <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
                           <span className="text-xs text-slate-500 block uppercase">綜合評分</span>
                           <div className="flex items-center gap-1">
                             <span className="font-bold text-yellow-600 text-lg">{selectedRestaurantForManage.rating?.toFixed(1) || 'N/A'}</span>
@@ -2838,7 +2832,7 @@ export default function LunchPicker() {
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                             <span className="bg-blue-100 text-blue-600 p-1 rounded">
-                               <List className="w-4 h-4" />
+                              <List className="w-4 h-4" />
                             </span>
                             評論列表 ({reviews.length})
                           </h4>
@@ -2850,7 +2844,7 @@ export default function LunchPicker() {
                             撰寫評論
                           </button>
                         </div>
-                        
+
                         {reviews.length === 0 ? (
                           <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
                             <p className="text-slate-500">目前還沒有評論，快去當第一個評論的人！</p>
@@ -2902,7 +2896,7 @@ export default function LunchPicker() {
         {currentView === 'history' && (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold text-slate-800 mb-4">我的午餐紀錄</h2>
-            
+
             {myHistory.length === 0 ? (
               <div className="text-center py-10 text-slate-500">
                 <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -2925,24 +2919,24 @@ export default function LunchPicker() {
                         {record.restaurant?.address && (
                           <div className="flex gap-1">
                             <button
-                                onClick={() => toggleMap(record.id)}
-                                className="text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition"
-                                title="查看地圖"
+                              onClick={() => toggleMap(record.id)}
+                              className="text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition"
+                              title="查看地圖"
                             >
-                                <MapPin className="w-4 h-4" />
+                              <MapPin className="w-4 h-4" />
                             </button>
                             <button
-                                onClick={() => handleOpenReview(record.restaurant)}
-                                className="text-yellow-600 hover:text-yellow-700 p-1 hover:bg-yellow-50 rounded transition"
-                                title="評分"
+                              onClick={() => handleOpenReview(record.restaurant)}
+                              className="text-yellow-600 hover:text-yellow-700 p-1 hover:bg-yellow-50 rounded transition"
+                              title="評分"
                             >
-                                <span className="text-sm">★</span>
+                              <span className="text-sm">★</span>
                             </button>
                           </div>
                         )}
                       </div>
                     </div>
-                    
+
                     {/* 地圖容器 */}
                     {openMaps[record.id] && record.restaurant?.address && (
                       <div className="w-full mt-4 rounded-lg overflow-hidden border border-slate-300" style={{ height: '200px' }}>
@@ -2989,10 +2983,34 @@ export default function LunchPicker() {
               <div className="absolute top-20 left-10 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse" />
               <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
 
+              {/* Decorative Image - Bottom Left */}
+              <img
+                src="/src/assets/pic/magicbunajiao.png"
+                alt=""
+                className="absolute bottom-0 left-[120px] transform -translate-x-1/2 w-[700px] md:w-[700px] opacity-70 pointer-events-none select-none"
+                style={{
+                  filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.3))'
+                }}
+              />
+
               {/* Content Container */}
               <div className="relative z-10 max-w-6xl mx-auto px-4 py-8">
-                {/* Title */}
-                <div className="text-center mb-8 animate-fade-in">
+                {/* Title with Back Button */}
+                <div className="text-center mb-8 animate-fade-in relative">
+                  {/* Back Button */}
+                  <button
+                    onClick={() => {
+                      stopVideo();
+                      setFaceRecommendation(null);
+                      setFaceData(null);
+                      setFaceScreenshot(null);
+                      setCurrentView('main');
+                    }}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-black/50 backdrop-blur-md border border-purple-500/30 text-purple-300 rounded-lg font-bold hover:border-purple-400/50 hover:bg-black/70 transition-all flex items-center gap-2"
+                  >
+                    ← 返回
+                  </button>
+
                   <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 mb-2 tracking-tight" style={{
                     textShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(168, 85, 247, 0.3)'
                   }}>
@@ -3001,207 +3019,241 @@ export default function LunchPicker() {
                   <p className="text-cyan-300/80 text-sm tracking-widest uppercase font-mono">
                     Mystical Fortune Analysis System
                   </p>
+                  <p className="text-cyan-300/80 text-sm tracking-widest uppercase font-mono">
+                    用面相來決定午餐吃什麼
+                  </p>
                 </div>
 
                 {!faceRecommendation ? (
-                  <div className="space-y-6 animate-slide-up">
-                    {/* Video Container */}
-                    <div className="relative mx-auto max-w-3xl">
-                      <div className="relative rounded-2xl overflow-hidden border-2 border-purple-500/30 shadow-2xl" style={{
-                        boxShadow: '0 0 40px rgba(168, 85, 247, 0.3), 0 0 80px rgba(168, 85, 247, 0.1), inset 0 0 40px rgba(168, 85, 247, 0.1)'
-                      }}>
-                        {/* Loading/Permission Overlay */}
-                        {isModelLoading && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
-                            <Loader className="w-16 h-16 text-purple-400 animate-spin mb-4" style={{
-                              filter: 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))'
-                            }} />
-                            <p className="text-purple-300 font-mono text-lg tracking-wider animate-pulse">
-                              載入神秘模型中...
-                            </p>
-                            <div className="mt-4 flex gap-2">
-                              <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-                              <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-                            </div>
-                          </div>
-                        )}
+                  <div className="animate-slide-up">
+                    {/* Desktop: Left-Right Layout, Mobile: Stack */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
 
-                        {/* Camera Permission Status */}
-                        {!isModelLoading && cameraPermissionStatus === 'pending' && !cameraStream && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
-                            <div className="w-20 h-20 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4" />
-                            <p className="text-cyan-300 font-mono text-lg tracking-wider mb-2">
-                              請允許相機權限
-                            </p>
-                            <p className="text-cyan-300/60 text-sm font-mono">
-                              等待瀏覽器權限確認...
-                            </p>
-                          </div>
-                        )}
+                      {/* Left Side - Data Display */}
+                      <div className="order-2 md:order-1 space-y-6">
+                        {faceData ? (
+                          <div className="space-y-6 animate-fade-in">
+                            {/* Data Cards - Vertical Stack on Desktop Left */}
+                            <div className="space-y-4">
+                              {/* Gender Card */}
+                              <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
+                                <div className="relative bg-black/40 backdrop-blur-md border border-purple-500/30 rounded-lg p-4 hover:border-purple-400/50 transition-all" style={{
+                                  boxShadow: '0 0 20px rgba(168, 85, 247, 0.2)'
+                                }}>
+                                  <div className="text-purple-300/60 text-xs font-mono uppercase tracking-widest mb-2">Gender</div>
+                                  <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                                    {faceData.gender === 'male' ? '男性' : '女性'}
+                                  </div>
+                                </div>
+                              </div>
 
-                        {/* Camera Error */}
-                        {cameraPermissionStatus !== 'granted' && cameraPermissionStatus !== 'pending' && cameraError && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20 p-6">
-                            <div className="w-20 h-20 bg-red-500/20 border-2 border-red-400/50 rounded-full flex items-center justify-center mb-4">
-                              <AlertCircle className="w-10 h-10 text-red-400" />
-                            </div>
-                            <p className="text-red-300 font-bold text-lg mb-2 text-center">
-                              相機存取失敗
-                            </p>
-                            <p className="text-red-300/80 text-sm text-center mb-6 max-w-md">
-                              {cameraError}
-                            </p>
-                            <button
-                              onClick={() => {
-                                setCameraError(null);
-                                setCameraPermissionStatus('pending');
-                                startVideo();
-                              }}
-                              className="px-6 py-3 bg-red-500/20 border border-red-400/30 text-red-300 rounded-lg font-bold hover:bg-red-500/30 transition-all"
-                            >
-                              🔄 重試
-                            </button>
-                          </div>
-                        )}
+                              {/* Age Card */}
+                              <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
+                                <div className="relative bg-black/40 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-400/50 transition-all" style={{
+                                  boxShadow: '0 0 20px rgba(34, 211, 238, 0.2)'
+                                }}>
+                                  <div className="text-cyan-300/60 text-xs font-mono uppercase tracking-widest mb-2">Age</div>
+                                  <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+                                    約 {faceData.age} 歲
+                                  </div>
+                                </div>
+                              </div>
 
-                        {/* Corner Decorations */}
-                        <div className="absolute top-0 left-0 w-20 h-20 border-t-2 border-l-2 border-purple-400/50 z-10" />
-                        <div className="absolute top-0 right-0 w-20 h-20 border-t-2 border-r-2 border-purple-400/50 z-10" />
-                        <div className="absolute bottom-0 left-0 w-20 h-20 border-b-2 border-l-2 border-purple-400/50 z-10" />
-                        <div className="absolute bottom-0 right-0 w-20 h-20 border-b-2 border-r-2 border-purple-400/50 z-10" />
-
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          muted
-                          playsInline
-                          width="640"
-                          height="480"
-                          onLoadedMetadata={handleVideoPlay}
-                          className="w-full h-full object-cover"
-                        />
-                        <canvas
-                          ref={canvasRefFace}
-                          width="640"
-                          height="480"
-                          className="absolute inset-0 w-full h-full"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Detection Data Display */}
-                    <div className="text-center">
-                      {faceData ? (
-                        <div className="space-y-6 animate-fade-in">
-                          {/* Data Cards */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-                            {/* Gender Card */}
-                            <div className="relative group">
-                              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
-                              <div className="relative bg-black/40 backdrop-blur-md border border-purple-500/30 rounded-lg p-4 hover:border-purple-400/50 transition-all" style={{
-                                boxShadow: '0 0 20px rgba(168, 85, 247, 0.2)'
-                              }}>
-                                <div className="text-purple-300/60 text-xs font-mono uppercase tracking-widest mb-2">Gender</div>
-                                <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                                  {faceData.gender === 'male' ? '男性' : '女性'}
+                              {/* Expression Card */}
+                              <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
+                                <div className="relative bg-black/40 backdrop-blur-md border border-pink-500/30 rounded-lg p-4 hover:border-pink-400/50 transition-all" style={{
+                                  boxShadow: '0 0 20px rgba(236, 72, 153, 0.2)'
+                                }}>
+                                  <div className="text-pink-300/60 text-xs font-mono uppercase tracking-widest mb-2">Emotion</div>
+                                  <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 uppercase">
+                                    {translateEmotion(faceData.expression)}
+                                  </div>
                                 </div>
                               </div>
                             </div>
 
-                            {/* Age Card */}
-                            <div className="relative group">
-                              <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
-                              <div className="relative bg-black/40 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-400/50 transition-all" style={{
-                                boxShadow: '0 0 20px rgba(34, 211, 238, 0.2)'
-                              }}>
-                                <div className="text-cyan-300/60 text-xs font-mono uppercase tracking-widest mb-2">Age</div>
-                                <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-                                  約 {faceData.age} 歲
+                            {/* Control Buttons */}
+                            <div className="flex flex-col gap-4 items-center">
+                              {/* Freeze/Unfreeze Button */}
+                              {!isFaceFrozen ? (
+                                <button
+                                  onClick={freezeFace}
+                                  className="w-full px-6 py-3 bg-black/50 backdrop-blur-md border border-cyan-500/30 text-cyan-300 rounded-lg font-bold hover:border-cyan-400/50 hover:bg-black/70 transition-all"
+                                >
+                                  📸 確定面相
+                                </button>
+                              ) : (
+                                <div className="flex items-center gap-3 w-full">
+                                  <div className="px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-lg text-green-300 font-mono text-sm">
+                                    ✓ 已凍結
+                                  </div>
+                                  <button
+                                    onClick={unfreezeFace}
+                                    className="flex-1 px-6 py-2 bg-black/50 backdrop-blur-md border border-purple-500/30 text-purple-300 rounded-lg font-bold hover:border-purple-400/50 hover:bg-black/70 transition-all"
+                                  >
+                                    🔄 重新偵測
+                                  </button>
                                 </div>
-                              </div>
-                            </div>
+                              )}
 
-                            {/* Expression Card */}
-                            <div className="relative group">
-                              <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
-                              <div className="relative bg-black/40 backdrop-blur-md border border-pink-500/30 rounded-lg p-4 hover:border-pink-400/50 transition-all" style={{
-                                boxShadow: '0 0 20px rgba(236, 72, 153, 0.2)'
-                              }}>
-                                <div className="text-pink-300/60 text-xs font-mono uppercase tracking-widest mb-2">Emotion</div>
-                                <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 uppercase">
-                                  {translateEmotion(faceData.expression)}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Freeze/Unfreeze Button */}
-                          {!isFaceFrozen ? (
-                            <button
-                              onClick={freezeFace}
-                              className="px-6 py-2 bg-black/50 backdrop-blur-md border border-cyan-500/30 text-cyan-300 rounded-lg font-bold hover:border-cyan-400/50 hover:bg-black/70 transition-all"
-                            >
-                              📸 確定面相
-                            </button>
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <div className="px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-lg text-green-300 font-mono text-sm">
-                                ✓ 已凍結
-                              </div>
+                              {/* Analyze Button */}
                               <button
-                                onClick={unfreezeFace}
-                                className="px-6 py-2 bg-black/50 backdrop-blur-md border border-purple-500/30 text-purple-300 rounded-lg font-bold hover:border-purple-400/50 hover:bg-black/70 transition-all"
+                                onClick={generateFaceRecommendation}
+                                className="w-full relative group px-8 py-4 text-lg font-bold text-white overflow-hidden rounded-full transition-all duration-300 hover:scale-105 active:scale-95"
+                                style={{
+                                  background: 'linear-gradient(135deg, #a855f7, #ec4899, #06b6d4)',
+                                  boxShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(168, 85, 247, 0.3)'
+                                }}
                               >
-                                🔄 重新偵測
+                                <span className="relative z-10 flex items-center justify-center gap-2">
+                                  🔮 開始神秘解析
+                                </span>
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-8 animate-pulse text-center">
+                            <p className="text-cyan-300/60 text-lg font-mono tracking-wider">
+                              [ 請將臉部對準鏡頭 ]
+                            </p>
+                            <div className="mt-4 flex justify-center gap-2">
+                              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
+                              <div className="w-2 h-2 bg-purple-400 rounded-full animate-ping" style={{ animationDelay: '0.2s' }} />
+                              <div className="w-2 h-2 bg-pink-400 rounded-full animate-ping" style={{ animationDelay: '0.4s' }} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Side - Video Container */}
+                      <div className="order-1 md:order-2 relative">
+                        <div className="relative rounded-2xl overflow-hidden border-2 border-purple-500/30 shadow-2xl" style={{
+                          boxShadow: '0 0 40px rgba(168, 85, 247, 0.3), 0 0 80px rgba(168, 85, 247, 0.1), inset 0 0 40px rgba(168, 85, 247, 0.1)'
+                        }}>
+                          {/* Loading/Permission Overlay */}
+                          {isModelLoading && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
+                              <Loader className="w-16 h-16 text-purple-400 animate-spin mb-4" style={{
+                                filter: 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))'
+                              }} />
+                              <p className="text-purple-300 font-mono text-lg tracking-wider animate-pulse">
+                                載入神秘模型中...
+                              </p>
+                              <div className="mt-4 flex gap-2">
+                                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                                <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Camera Permission Status */}
+                          {!isModelLoading && cameraPermissionStatus === 'pending' && !cameraStream && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
+                              <div className="w-20 h-20 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4" />
+                              <p className="text-cyan-300 font-mono text-lg tracking-wider mb-2">
+                                請允許相機權限
+                              </p>
+                              <p className="text-cyan-300/60 text-sm font-mono">
+                                等待瀏覽器權限確認...
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Camera Error */}
+                          {cameraPermissionStatus !== 'granted' && cameraPermissionStatus !== 'pending' && cameraError && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20 p-6">
+                              <div className="w-20 h-20 bg-red-500/20 border-2 border-red-400/50 rounded-full flex items-center justify-center mb-4">
+                                <AlertCircle className="w-10 h-10 text-red-400" />
+                              </div>
+                              <p className="text-red-300 font-bold text-lg mb-2 text-center">
+                                相機存取失敗
+                              </p>
+                              <p className="text-red-300/80 text-sm text-center mb-6 max-w-md">
+                                {cameraError}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setCameraError(null);
+                                  setCameraPermissionStatus('pending');
+                                  startVideo();
+                                }}
+                                className="px-6 py-3 bg-red-500/20 border border-red-400/30 text-red-300 rounded-lg font-bold hover:bg-red-500/30 transition-all"
+                              >
+                                🔄 重試
                               </button>
                             </div>
                           )}
 
-                          {/* Analyze Button */}
-                          <button
-                            onClick={generateFaceRecommendation}
-                            className="relative group px-8 py-4 text-lg font-bold text-white overflow-hidden rounded-full transition-all duration-300 hover:scale-105 active:scale-95"
-                            style={{
-                              background: 'linear-gradient(135deg, #a855f7, #ec4899, #06b6d4)',
-                              boxShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(168, 85, 247, 0.3)'
-                            }}
-                          >
-                            <span className="relative z-10 flex items-center gap-2">
-                              🔮 開始神秘解析
-                            </span>
-                            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl" />
-                          </button>
+                          {/* Corner Decorations */}
+                          <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-purple-400/50 z-10" />
+                          <div className="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-purple-400/50 z-10" />
+                          <div className="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 border-purple-400/50 z-10" />
+                          <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-purple-400/50 z-10" />
+
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            muted
+                            playsInline
+                            width="640"
+                            height="480"
+                            onLoadedMetadata={handleVideoPlay}
+                            className="w-full h-full object-cover"
+                          />
+                          <canvas
+                            ref={canvasRefFace}
+                            width="640"
+                            height="480"
+                            className="absolute inset-0 w-full h-full"
+                          />
                         </div>
-                      ) : (
-                        <div className="py-8 animate-pulse">
-                          <p className="text-cyan-300/60 text-lg font-mono tracking-wider">
-                            [ 請將臉部對準鏡頭 ]
-                          </p>
-                          <div className="mt-4 flex justify-center gap-2">
-                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
-                            <div className="w-2 h-2 bg-purple-400 rounded-full animate-ping" style={{ animationDelay: '0.2s' }} />
-                            <div className="w-2 h-2 bg-pink-400 rounded-full animate-ping" style={{ animationDelay: '0.4s' }} />
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 ) : (
                   /* Recommendation Result */
-                  <div className="max-w-2xl mx-auto animate-fade-in">
-                    {/* Mystical Icon */}
+                  <div className="max-w-3xl mx-auto animate-fade-in">
+                    {/* Screenshot and Analysis Display */}
                     <div className="text-center mb-8">
-                      <div className="relative inline-block">
-                        <div className="absolute inset-0 bg-purple-600/30 rounded-full blur-2xl animate-pulse" />
-                        <div className="relative w-32 h-32 bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-md border-2 border-purple-400/30 rounded-full flex items-center justify-center mx-auto" style={{
-                          boxShadow: '0 0 40px rgba(168, 85, 247, 0.4), inset 0 0 40px rgba(168, 85, 247, 0.2)'
-                        }}>
-                          <ChefHat className="w-16 h-16 text-purple-300" style={{
-                            filter: 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))'
-                          }} />
+                      {faceScreenshot ? (
+                        <div className="relative inline-block">
+                          <div className="absolute inset-0 bg-purple-600/30 rounded-2xl blur-2xl animate-pulse" />
+                          <div className="relative rounded-2xl overflow-hidden border-2 border-purple-400/30 mx-auto" style={{
+                            boxShadow: '0 0 40px rgba(168, 85, 247, 0.4), inset 0 0 40px rgba(168, 85, 247, 0.2)',
+                            maxWidth: '300px'
+                          }}>
+                            <img
+                              src={faceScreenshot}
+                              alt="您的面相截圖"
+                              className="w-full h-auto"
+                            />
+                            {/* Corner Decorations */}
+                            <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-cyan-400/70" />
+                            <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-cyan-400/70" />
+                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-cyan-400/70" />
+                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-cyan-400/70" />
+                          </div>
+                          <p className="text-purple-300/60 text-xs font-mono mt-3 tracking-wider">
+                            📸 您的面相截圖
+                          </p>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="relative inline-block">
+                          <div className="absolute inset-0 bg-purple-600/30 rounded-full blur-2xl animate-pulse" />
+                          <div className="relative w-32 h-32 bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-md border-2 border-purple-400/30 rounded-full flex items-center justify-center mx-auto" style={{
+                            boxShadow: '0 0 40px rgba(168, 85, 247, 0.4), inset 0 0 40px rgba(168, 85, 247, 0.2)'
+                          }}>
+                            <ChefHat className="w-16 h-16 text-purple-300" style={{
+                              filter: 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))'
+                            }} />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Title */}
@@ -3227,7 +3279,7 @@ export default function LunchPicker() {
                         }}>
                           {faceRecommendation.restaurant.name}
                         </h4>
-                        
+
                         <div className="flex justify-center items-center gap-4 mb-4">
                           <span className={`font-bold text-2xl ${getPriceColor(faceRecommendation.restaurant.price)}`} style={{
                             textShadow: '0 0 10px currentColor'
@@ -3325,14 +3377,14 @@ export default function LunchPicker() {
               <h3 className="text-xl font-bold text-gray-800">
                 評論: {reviewTarget?.name}
               </h3>
-              <button 
+              <button
                 onClick={() => setShowReviewModal(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmitReview} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">評分</label>
@@ -3342,16 +3394,15 @@ export default function LunchPicker() {
                       key={star}
                       type="button"
                       onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
-                      className={`text-3xl transition transform hover:scale-110 ${
-                        star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-200'
-                      }`}
+                      className={`text-3xl transition transform hover:scale-110 ${star <= reviewForm.rating ? 'text-yellow-400' : 'text-gray-200'
+                        }`}
                     >
                       ★
                     </button>
                   ))}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">留言</label>
                 <textarea
@@ -3362,7 +3413,7 @@ export default function LunchPicker() {
                   required
                 />
               </div>
-              
+
               <button
                 type="submit"
                 className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-md"
