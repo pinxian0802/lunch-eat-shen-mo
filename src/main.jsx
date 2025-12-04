@@ -5,6 +5,7 @@ import './index.css'
 import HomePage from './HomePage.jsx'
 import LuweiOrderingApp from './LuweiOrderingApp.jsx'
 import LunchPicker from './LunchPicker.jsx'
+import ParticleShaper from './ParticleShaper.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -13,6 +14,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="/" element={<HomePage />} />
         <Route path="/luwei" element={<LuweiOrderingApp />} />
         <Route path="/lunch-picker" element={<LunchPicker />} />
+        <Route path="/particle-shaper" element={<ParticleShaper />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
