@@ -568,8 +568,12 @@ export default function LunchPicker() {
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [faceData, setFaceData] = useState(null); // { age, gender, expressions }
   const [cameraStream, setCameraStream] = useState(null);
+  const [cameraPermissionStatus, setCameraPermissionStatus] = useState('pending'); // 'pending' | 'granted' | 'denied' | 'timeout'
+  const [cameraError, setCameraError] = useState(null);
+  const [isFaceFrozen, setIsFaceFrozen] = useState(false);
   const videoRef = useRef(null);
   const canvasRefFace = useRef(null);
+  const detectionIntervalRef = useRef(null);
   const [faceRecommendation, setFaceRecommendation] = useState(null);
 
 
@@ -743,6 +747,20 @@ export default function LunchPicker() {
   }, [showCouponModal, countdown, canSkip, isVideoPaused]);
 
   // --- Face API Logic ---
+  // 表情翻譯
+  const translateEmotion = (emotion) => {
+    const emotionMap = {
+      'happy': '開心',
+      'sad': '難過',
+      'angry': '生氣',
+      'surprised': '驚訝',
+      'fearful': '害怕',
+      'disgusted': '厭惡',
+      'neutral': '平靜'
+    };
+    return emotionMap[emotion] || emotion;
+  };
+
   const loadModels = async () => {
     setIsModelLoading(true);
     try {
@@ -762,24 +780,66 @@ export default function LunchPicker() {
     }
   };
 
-  const startVideo = () => {
+  const startVideo = async () => {
     setFaceData(null);
     setFaceRecommendation(null);
-    navigator.mediaDevices
-      .getUserMedia({ video: { width: 640, height: 480 } })
-      .then((stream) => {
-        setCameraStream(stream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      })
-      .catch((err) => {
-        console.error("Error accessing camera:", err);
-        setToast({ message: "無法存取相機，請確認權限", type: "error" });
+    setIsFaceFrozen(false);
+    setCameraError(null);
+    setCameraPermissionStatus('pending');
+
+    try {
+      // Create timeout promise (60 seconds)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('TIMEOUT')), 60000);
       });
+
+      // Request camera with timeout
+      const stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }),
+        timeoutPromise
+      ]);
+
+      // Success
+      setCameraStream(stream);
+      setCameraPermissionStatus('granted');
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      
+      let errorMessage = "無法存取相機";
+      
+      if (err.message === 'TIMEOUT') {
+        setCameraPermissionStatus('timeout');
+        errorMessage = "相機權限請求逾時，請重新整理頁面或檢查瀏覽器設定";
+      } else if (err.name === 'NotAllowedError') {
+        setCameraPermissionStatus('denied');
+        errorMessage = "相機權限被拒絕，請在瀏覽器設定中允許相機存取";
+      } else if (err.name === 'NotFoundError') {
+        setCameraPermissionStatus('denied');
+        errorMessage = "找不到相機設備，請確認相機已連接";
+      } else if (err.name === 'NotReadableError') {
+        setCameraPermissionStatus('denied');
+        errorMessage = "相機正在被其他應用程式使用，請關閉其他使用相機的程式後重試";
+      } else {
+        setCameraPermissionStatus('denied');
+        errorMessage = `相機錯誤: ${err.message}`;
+      }
+      
+      setCameraError(errorMessage);
+      setToast({ message: errorMessage, type: "error" });
+    }
   };
 
   const stopVideo = () => {
+    // Clear detection interval
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+    
+    // Stop camera stream
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
       setCameraStream(null);
@@ -794,42 +854,106 @@ export default function LunchPicker() {
     const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
     faceapi.matchDimensions(canvas, displaySize);
 
-    const interval = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) {
-        clearInterval(interval);
-        return;
-      }
+    // Clear any existing interval
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+    }
 
-      const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceExpressions()
-        .withAgeAndGender();
+    // Start detection loop (200ms for faster updates)
+    detectionIntervalRef.current = setInterval(async () => {
+      try {
+        // Stop if video ended or frozen
+        if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || isFaceFrozen) {
+          if (detectionIntervalRef.current) {
+            clearInterval(detectionIntervalRef.current);
+            detectionIntervalRef.current = null;
+          }
+          return;
+        }
 
-      const resizedDetections = faceapi.resizeResults(detections, displaySize);
-      
-      const context = canvas.getContext('2d');
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      
-      faceapi.draw.drawDetections(canvas, resizedDetections);
-      faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+        // Use optimized detection options for better accuracy and speed
+        const detections = await faceapi.detectAllFaces(
+          video, 
+          new faceapi.TinyFaceDetectorOptions({ 
+            inputSize: 416,
+            scoreThreshold: 0.5
+          })
+        )
+          .withFaceLandmarks()
+          .withFaceExpressions()
+          .withAgeAndGender();
 
-      if (detections.length > 0) {
-        const detection = detections[0];
-        const { age, gender, expressions } = detection;
+        const resizedDetections = faceapi.resizeResults(detections, displaySize);
         
-        // Find dominant expression
-        const sortedExpressions = Object.entries(expressions).sort((a, b) => b[1] - a[1]);
-        const dominantExpression = sortedExpressions[0][0];
+        // Always clear canvas
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Log detection status
+        console.log(`[Face Detection] Detected ${detections.length} face(s)`);
+        
+        // Draw detections if found
+        if (resizedDetections && resizedDetections.length > 0) {
+          faceapi.draw.drawDetections(canvas, resizedDetections);
+          faceapi.draw.drawFaceExpressions(canvas, resizedDetections);
+        }
 
-        setFaceData({
-          age: Math.round(age),
-          gender,
-          expression: dominantExpression
-        });
+        // Update face data if detected
+        if (detections.length > 0) {
+          const detection = detections[0];
+          const { age, gender, expressions } = detection;
+          
+          // Find dominant expression
+          const sortedExpressions = Object.entries(expressions).sort((a, b) => b[1] - a[1]);
+          const dominantExpression = sortedExpressions[0][0];
+
+          const newFaceData = {
+            age: Math.round(age),
+            gender,
+            expression: dominantExpression
+          };
+          
+          console.log('[Face Detection] Data:', newFaceData);
+          setFaceData(newFaceData);
+        } else {
+          // Clear face data when no face detected
+          console.log('[Face Detection] No face detected - clearing data');
+          setFaceData(null);
+        }
+      } catch (error) {
+        console.error('[Face Detection] Error:', error);
+        // Don't stop the interval on error, just log it and continue
       }
-    }, 500);
+    }, 200);
+  };
+
+  const freezeFace = () => {
+    setIsFaceFrozen(true);
     
-    return () => clearInterval(interval);
+    // Pause the video to freeze the frame
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    
+    // Stop detection
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+  };
+
+  const unfreezeFace = () => {
+    setIsFaceFrozen(false);
+    
+    // Resume the video
+    if (videoRef.current && videoRef.current.paused) {
+      videoRef.current.play();
+    }
+    
+    // Restart detection
+    if (videoRef.current && !videoRef.current.ended) {
+      handleVideoPlay();
+    }
   };
 
   const generateFaceRecommendation = () => {
@@ -883,7 +1007,7 @@ export default function LunchPicker() {
     setFaceRecommendation({
       restaurant: randomRestaurant,
       reason: moodText,
-      details: `偵測到：${faceData.gender === 'male' ? '男性' : '女性'}, 約 ${faceData.age} 歲, 表情: ${faceData.expression}`
+      details: `偵測到：${faceData.gender === 'male' ? '男性' : '女性'}, 約 ${faceData.age} 歲, 表情: ${translateEmotion(faceData.expression)}`
     });
     
     // Stop video after recommendation
@@ -2271,8 +2395,8 @@ export default function LunchPicker() {
           </button>
         </div>
         
-        {/* 漂浮統計按鈕 - 固定在左上角 */}
-        {!isFloatingMinimized ? (
+        {/* 漂浮統計按鈕 - 固定在左上角 (在看面相時隱藏) */}
+        {currentView !== 'face' && !isFloatingMinimized ? (
           <div className="fixed top-4 left-4 z-50 bg-white rounded-xl shadow-2xl border border-slate-200 w-80 max-h-[80vh] overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center sticky top-0">
               <div className="flex items-center gap-2">
@@ -2319,7 +2443,7 @@ export default function LunchPicker() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : currentView !== 'face' ? (
           <button
             onClick={() => setIsFloatingMinimized(false)}
             className="fixed top-4 left-4 z-50 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3 rounded-full shadow-xl hover:shadow-2xl transition-all transform hover:scale-110"
@@ -2332,7 +2456,8 @@ export default function LunchPicker() {
               </span>
             )}
           </button>
-        )}
+        ) : null}
+        
         
         {/* 標題 */}
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 pb-1 border-b-2 border-blue-500 inline-block">
@@ -2841,131 +2966,353 @@ export default function LunchPicker() {
 
         {/* === 看面相視圖 === */}
         {currentView === 'face' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">AI 面相大師</h2>
-            
-            {!faceRecommendation ? (
-              <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-                <div className="flex flex-col items-center">
-                  <div className="relative w-full max-w-2xl aspect-video bg-black rounded-lg overflow-hidden mb-6">
-                    {isModelLoading && (
-                      <div className="absolute inset-0 flex items-center justify-center text-white bg-black/50 z-20">
-                        <Loader className="w-8 h-8 animate-spin mr-2" />
-                        <span>載入模型中...</span>
-                      </div>
-                    )}
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      width="640"
-                      height="480"
-                      onLoadedMetadata={handleVideoPlay}
-                      className="w-full h-full object-cover"
-                    />
-                    <canvas
-                      ref={canvasRefFace}
-                      width="640"
-                      height="480"
-                      className="absolute inset-0 w-full h-full"
-                    />
-                  </div>
-                  
-                  <div className="text-center mb-6 w-full">
-                    {faceData ? (
-                      <div className="space-y-4">
-                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                          <p className="text-lg font-medium text-slate-700">
-                            偵測到：
-                            <span className="font-bold text-blue-600 mx-1">
-                              {faceData.gender === 'male' ? '男性' : '女性'}
-                            </span>
-                            /
-                            <span className="font-bold text-blue-600 mx-1">
-                              約 {faceData.age} 歲
-                            </span>
-                          </p>
-                          <p className="text-lg font-medium text-slate-700 mt-2">
-                            表情：
-                            <span className="font-bold text-purple-600 uppercase mx-1">
-                              {faceData.expression}
-                            </span>
-                          </p>
-                        </div>
-                        <button
-                          onClick={generateFaceRecommendation}
-                          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95"
-                        >
-                          🔮 依照面相推薦午餐
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-slate-500 text-lg">請將臉部對準鏡頭...</p>
-                    )}
-                  </div>
-                </div>
+          <div className="fixed inset-0 z-40 overflow-auto">
+            {/* Mystical Background */}
+            <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-black relative overflow-hidden">
+              {/* Animated Stars Background */}
+              <div className="absolute inset-0 opacity-30">
+                {[...Array(50)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                      animationDelay: `${Math.random() * 3}s`,
+                      animationDuration: `${2 + Math.random() * 3}s`
+                    }}
+                  />
+                ))}
               </div>
-            ) : (
-              <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-200">
-                <div className="text-center">
-                  <div className="mb-6">
-                    <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <ChefHat className="w-12 h-12 text-purple-600" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-800 mb-2">大師為您推薦</h3>
-                    <p className="text-purple-600 font-medium text-lg mb-6">{faceRecommendation.reason}</p>
-                    
-                    <div className="bg-slate-50 p-6 rounded-xl border-2 border-purple-100 inline-block w-full max-w-md">
-                      <h4 className="text-3xl font-bold text-slate-800 mb-3">{faceRecommendation.restaurant.name}</h4>
-                      <div className="flex justify-center gap-2 mb-3">
-                        <span className={`font-bold text-lg ${getPriceColor(faceRecommendation.restaurant.price)}`}>
-                          {faceRecommendation.restaurant.price}
-                        </span>
-                        <span className="text-slate-400">|</span>
-                        <span className="text-slate-600">{formatDistance(faceRecommendation.restaurant.distance)}</span>
-                      </div>
-                      <p className="text-sm text-slate-600 mb-3">{faceRecommendation.restaurant.address}</p>
-                      <div className="flex flex-wrap justify-center gap-2">
-                        {faceRecommendation.restaurant.tags.map(tag => (
-                          <span key={tag} className="text-xs bg-white border border-slate-200 px-2 py-1 rounded-full text-slate-600">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-center gap-4 mb-6">
-                    <button
-                      onClick={() => {
-                        setFaceRecommendation(null);
-                        setFaceData(null);
-                        startVideo();
-                      }}
-                      className="px-6 py-3 bg-slate-200 text-slate-700 rounded-lg font-bold hover:bg-slate-300 transition"
-                    >
-                      再測一次
-                    </button>
-                    <button
-                      onClick={() => {
-                        setCurrentView('main');
-                        setWinningRestaurant(faceRecommendation.restaurant);
-                        saveWinningRestaurant(faceRecommendation.restaurant);
-                        setToast({ message: `✅ 已選擇：${faceRecommendation.restaurant.name}`, type: 'success' });
-                      }}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition"
-                    >
-                      就吃這家！
-                    </button>
-                  </div>
-                  
-                  <p className="text-xs text-slate-400">
-                    {faceRecommendation.details}
+
+              {/* Gradient Orbs */}
+              <div className="absolute top-20 left-10 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+              {/* Content Container */}
+              <div className="relative z-10 max-w-6xl mx-auto px-4 py-8">
+                {/* Title */}
+                <div className="text-center mb-8 animate-fade-in">
+                  <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 mb-2 tracking-tight" style={{
+                    textShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(168, 85, 247, 0.3)'
+                  }}>
+                    AI 面相大師
+                  </h1>
+                  <p className="text-cyan-300/80 text-sm tracking-widest uppercase font-mono">
+                    Mystical Fortune Analysis System
                   </p>
                 </div>
+
+                {!faceRecommendation ? (
+                  <div className="space-y-6 animate-slide-up">
+                    {/* Video Container */}
+                    <div className="relative mx-auto max-w-3xl">
+                      <div className="relative rounded-2xl overflow-hidden border-2 border-purple-500/30 shadow-2xl" style={{
+                        boxShadow: '0 0 40px rgba(168, 85, 247, 0.3), 0 0 80px rgba(168, 85, 247, 0.1), inset 0 0 40px rgba(168, 85, 247, 0.1)'
+                      }}>
+                        {/* Loading/Permission Overlay */}
+                        {isModelLoading && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
+                            <Loader className="w-16 h-16 text-purple-400 animate-spin mb-4" style={{
+                              filter: 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))'
+                            }} />
+                            <p className="text-purple-300 font-mono text-lg tracking-wider animate-pulse">
+                              載入神秘模型中...
+                            </p>
+                            <div className="mt-4 flex gap-2">
+                              <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                              <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Camera Permission Status */}
+                        {!isModelLoading && cameraPermissionStatus === 'pending' && !cameraStream && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
+                            <div className="w-20 h-20 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4" />
+                            <p className="text-cyan-300 font-mono text-lg tracking-wider mb-2">
+                              請允許相機權限
+                            </p>
+                            <p className="text-cyan-300/60 text-sm font-mono">
+                              等待瀏覽器權限確認...
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Camera Error */}
+                        {cameraPermissionStatus !== 'granted' && cameraPermissionStatus !== 'pending' && cameraError && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20 p-6">
+                            <div className="w-20 h-20 bg-red-500/20 border-2 border-red-400/50 rounded-full flex items-center justify-center mb-4">
+                              <AlertCircle className="w-10 h-10 text-red-400" />
+                            </div>
+                            <p className="text-red-300 font-bold text-lg mb-2 text-center">
+                              相機存取失敗
+                            </p>
+                            <p className="text-red-300/80 text-sm text-center mb-6 max-w-md">
+                              {cameraError}
+                            </p>
+                            <button
+                              onClick={() => {
+                                setCameraError(null);
+                                setCameraPermissionStatus('pending');
+                                startVideo();
+                              }}
+                              className="px-6 py-3 bg-red-500/20 border border-red-400/30 text-red-300 rounded-lg font-bold hover:bg-red-500/30 transition-all"
+                            >
+                              🔄 重試
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Corner Decorations */}
+                        <div className="absolute top-0 left-0 w-20 h-20 border-t-2 border-l-2 border-purple-400/50 z-10" />
+                        <div className="absolute top-0 right-0 w-20 h-20 border-t-2 border-r-2 border-purple-400/50 z-10" />
+                        <div className="absolute bottom-0 left-0 w-20 h-20 border-b-2 border-l-2 border-purple-400/50 z-10" />
+                        <div className="absolute bottom-0 right-0 w-20 h-20 border-b-2 border-r-2 border-purple-400/50 z-10" />
+
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          muted
+                          playsInline
+                          width="640"
+                          height="480"
+                          onLoadedMetadata={handleVideoPlay}
+                          className="w-full h-full object-cover"
+                        />
+                        <canvas
+                          ref={canvasRefFace}
+                          width="640"
+                          height="480"
+                          className="absolute inset-0 w-full h-full"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Detection Data Display */}
+                    <div className="text-center">
+                      {faceData ? (
+                        <div className="space-y-6 animate-fade-in">
+                          {/* Data Cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                            {/* Gender Card */}
+                            <div className="relative group">
+                              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
+                              <div className="relative bg-black/40 backdrop-blur-md border border-purple-500/30 rounded-lg p-4 hover:border-purple-400/50 transition-all" style={{
+                                boxShadow: '0 0 20px rgba(168, 85, 247, 0.2)'
+                              }}>
+                                <div className="text-purple-300/60 text-xs font-mono uppercase tracking-widest mb-2">Gender</div>
+                                <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                                  {faceData.gender === 'male' ? '男性' : '女性'}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Age Card */}
+                            <div className="relative group">
+                              <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
+                              <div className="relative bg-black/40 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-400/50 transition-all" style={{
+                                boxShadow: '0 0 20px rgba(34, 211, 238, 0.2)'
+                              }}>
+                                <div className="text-cyan-300/60 text-xs font-mono uppercase tracking-widest mb-2">Age</div>
+                                <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+                                  約 {faceData.age} 歲
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Expression Card */}
+                            <div className="relative group">
+                              <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 rounded-lg blur-xl group-hover:blur-2xl transition-all" />
+                              <div className="relative bg-black/40 backdrop-blur-md border border-pink-500/30 rounded-lg p-4 hover:border-pink-400/50 transition-all" style={{
+                                boxShadow: '0 0 20px rgba(236, 72, 153, 0.2)'
+                              }}>
+                                <div className="text-pink-300/60 text-xs font-mono uppercase tracking-widest mb-2">Emotion</div>
+                                <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400 uppercase">
+                                  {translateEmotion(faceData.expression)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Freeze/Unfreeze Button */}
+                          {!isFaceFrozen ? (
+                            <button
+                              onClick={freezeFace}
+                              className="px-6 py-2 bg-black/50 backdrop-blur-md border border-cyan-500/30 text-cyan-300 rounded-lg font-bold hover:border-cyan-400/50 hover:bg-black/70 transition-all"
+                            >
+                              📸 確定面相
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <div className="px-4 py-2 bg-green-500/20 border border-green-400/30 rounded-lg text-green-300 font-mono text-sm">
+                                ✓ 已凍結
+                              </div>
+                              <button
+                                onClick={unfreezeFace}
+                                className="px-6 py-2 bg-black/50 backdrop-blur-md border border-purple-500/30 text-purple-300 rounded-lg font-bold hover:border-purple-400/50 hover:bg-black/70 transition-all"
+                              >
+                                🔄 重新偵測
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Analyze Button */}
+                          <button
+                            onClick={generateFaceRecommendation}
+                            className="relative group px-8 py-4 text-lg font-bold text-white overflow-hidden rounded-full transition-all duration-300 hover:scale-105 active:scale-95"
+                            style={{
+                              background: 'linear-gradient(135deg, #a855f7, #ec4899, #06b6d4)',
+                              boxShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(168, 85, 247, 0.3)'
+                            }}
+                          >
+                            <span className="relative z-10 flex items-center gap-2">
+                              🔮 開始神秘解析
+                            </span>
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity blur-xl" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="py-8 animate-pulse">
+                          <p className="text-cyan-300/60 text-lg font-mono tracking-wider">
+                            [ 請將臉部對準鏡頭 ]
+                          </p>
+                          <div className="mt-4 flex justify-center gap-2">
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
+                            <div className="w-2 h-2 bg-purple-400 rounded-full animate-ping" style={{ animationDelay: '0.2s' }} />
+                            <div className="w-2 h-2 bg-pink-400 rounded-full animate-ping" style={{ animationDelay: '0.4s' }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* Recommendation Result */
+                  <div className="max-w-2xl mx-auto animate-fade-in">
+                    {/* Mystical Icon */}
+                    <div className="text-center mb-8">
+                      <div className="relative inline-block">
+                        <div className="absolute inset-0 bg-purple-600/30 rounded-full blur-2xl animate-pulse" />
+                        <div className="relative w-32 h-32 bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-md border-2 border-purple-400/30 rounded-full flex items-center justify-center mx-auto" style={{
+                          boxShadow: '0 0 40px rgba(168, 85, 247, 0.4), inset 0 0 40px rgba(168, 85, 247, 0.2)'
+                        }}>
+                          <ChefHat className="w-16 h-16 text-purple-300" style={{
+                            filter: 'drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))'
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="text-4xl font-black text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 mb-4" style={{
+                      textShadow: '0 0 30px rgba(168, 85, 247, 0.5)'
+                    }}>
+                      命運之選
+                    </h3>
+
+                    {/* Reason */}
+                    <p className="text-center text-cyan-300 text-lg mb-8 font-light tracking-wide">
+                      {faceRecommendation.reason}
+                    </p>
+
+                    {/* Restaurant Card */}
+                    <div className="relative group mb-8">
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 via-pink-600/30 to-cyan-600/30 rounded-2xl blur-2xl group-hover:blur-3xl transition-all" />
+                      <div className="relative bg-black/50 backdrop-blur-xl border-2 border-purple-500/30 rounded-2xl p-8" style={{
+                        boxShadow: '0 0 40px rgba(168, 85, 247, 0.3), inset 0 0 40px rgba(168, 85, 247, 0.1)'
+                      }}>
+                        <h4 className="text-4xl font-black text-center text-white mb-4" style={{
+                          textShadow: '0 0 20px rgba(255, 255, 255, 0.5)'
+                        }}>
+                          {faceRecommendation.restaurant.name}
+                        </h4>
+                        
+                        <div className="flex justify-center items-center gap-4 mb-4">
+                          <span className={`font-bold text-2xl ${getPriceColor(faceRecommendation.restaurant.price)}`} style={{
+                            textShadow: '0 0 10px currentColor'
+                          }}>
+                            {faceRecommendation.restaurant.price}
+                          </span>
+                          <span className="text-purple-400/50">|</span>
+                          <span className="text-cyan-300 font-mono">{formatDistance(faceRecommendation.restaurant.distance)}</span>
+                        </div>
+
+                        <p className="text-center text-purple-300/80 text-sm mb-4">{faceRecommendation.restaurant.address}</p>
+
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {faceRecommendation.restaurant.tags.map(tag => (
+                            <span key={tag} className="px-3 py-1 bg-purple-500/20 border border-purple-400/30 rounded-full text-purple-300 text-xs font-mono backdrop-blur-sm">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-center gap-4 mb-6">
+                      <button
+                        onClick={() => {
+                          setFaceRecommendation(null);
+                          setFaceData(null);
+                          startVideo();
+                        }}
+                        className="px-6 py-3 bg-black/50 backdrop-blur-md border border-purple-500/30 text-purple-300 rounded-lg font-bold hover:border-purple-400/50 hover:bg-black/70 transition-all"
+                      >
+                        🔄 再測一次
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCurrentView('main');
+                          setWinningRestaurant(faceRecommendation.restaurant);
+                          saveWinningRestaurant(faceRecommendation.restaurant);
+                          setToast({ message: `✅ 已選擇：${faceRecommendation.restaurant.name}`, type: 'success' });
+                        }}
+                        className="relative group px-6 py-3 text-white font-bold rounded-lg overflow-hidden transition-all hover:scale-105"
+                        style={{
+                          background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+                          boxShadow: '0 0 20px rgba(168, 85, 247, 0.5)'
+                        }}
+                      >
+                        <span className="relative z-10">✨ 就吃這家！</span>
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    </div>
+
+                    {/* Details */}
+                    <p className="text-center text-purple-400/50 text-xs font-mono tracking-wider">
+                      {faceRecommendation.details}
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Custom Animations */}
+              <style>{`
+                @keyframes fade-in {
+                  from { opacity: 0; transform: translateY(20px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes slide-up {
+                  from { opacity: 0; transform: translateY(40px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes scan {
+                  0% { top: 0%; }
+                  100% { top: 100%; }
+                }
+                .animate-fade-in {
+                  animation: fade-in 0.8s ease-out;
+                }
+                .animate-slide-up {
+                  animation: slide-up 1s ease-out;
+                }
+                .animate-scan {
+                  animation: scan 3s linear infinite;
+                }
+              `}</style>
+            </div>
           </div>
         )}
       </div>
