@@ -2182,16 +2182,28 @@ export default function LunchPicker() {
           <>
             {/* Left Decor - Food Images - Scattered */}
             <div className="hidden xl:flex fixed left-0 top-1/2 -translate-y-1/2 flex-col h-[95vh] justify-between z-0 pointer-events-none select-none">
-               <img src={imgLuRouFan} className="w-56 2xl:w-72 object-contain drop-shadow-2xl opacity-90 -translate-x-1/3 rotate-12" alt="" />
-               <img src={imgChickenBento} className="w-64 2xl:w-80 object-contain drop-shadow-2xl opacity-90 -translate-x-1/3 -rotate-6 ml-8" alt="" />
-               <img src={imgBeefNoodle} className="w-[360px] 2xl:w-92 object-contain drop-shadow-2xl opacity-90  -translate-x-1/3 -rotate-6" alt="" />
+               <div className="animate-pop-in-left" style={{ animationDelay: '0.1s' }}>
+                 <img src={imgLuRouFan} className="w-56 2xl:w-72 object-contain drop-shadow-2xl opacity-90 -translate-x-1/3 rotate-12" alt="" />
+               </div>
+               <div className="animate-pop-in-left" style={{ animationDelay: '0.3s' }}>
+                 <img src={imgChickenBento} className="w-64 2xl:w-80 object-contain drop-shadow-2xl opacity-90 -translate-x-1/3 -rotate-6 ml-8" alt="" />
+               </div>
+               <div className="animate-pop-in-left" style={{ animationDelay: '0.2s' }}>
+                 <img src={imgBeefNoodle} className="w-[360px] 2xl:w-92 object-contain drop-shadow-2xl opacity-90  -translate-x-1/3 -rotate-6" alt="" />
+               </div>
             </div>
 
             {/* Right Decor - Food Images - Scattered */}
             <div className="hidden xl:flex fixed right-0 top-1/2 -translate-y-1/2 flex-col h-[100vh] justify-between z-0 pointer-events-none select-none">
-               <img src={imgPasta} className="w-56 2xl:w-72 object-contain drop-shadow-2xl opacity-90 translate-x-1/2 -rotate-12" alt="" />
-               <img src={imgSubway} className="w-64 2xl:w-80 object-contain drop-shadow-2xl opacity-90 translate-x-1/3 rotate-6 mr-8" alt="" />
-               <img src={imgShuangYue} className="w-[360px] 2xl:w-92 object-contain drop-shadow-2xl opacity-90 translate-x-1/3 rotate-6" alt="" />
+               <div className="animate-pop-in-right" style={{ animationDelay: '0.1s' }}>
+                 <img src={imgPasta} className="w-56 2xl:w-72 object-contain drop-shadow-2xl opacity-90 translate-x-1/2 -rotate-12" alt="" />
+               </div>
+               <div className="animate-pop-in-right" style={{ animationDelay: '0.3s' }}>
+                 <img src={imgSubway} className="w-64 2xl:w-80 object-contain drop-shadow-2xl opacity-90 translate-x-1/3 rotate-6 mr-8" alt="" />
+               </div>
+               <div className="animate-pop-in-right" style={{ animationDelay: '0.2s' }}>
+                 <img src={imgShuangYue} className="w-[360px] 2xl:w-92 object-contain drop-shadow-2xl opacity-90 translate-x-1/3 rotate-6" alt="" />
+               </div>
             </div>
           </>
         )}

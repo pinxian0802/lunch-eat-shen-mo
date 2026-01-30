@@ -46,7 +46,7 @@ export default function ScratchCard({
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     
-    // 金屬質感漸層背景
+    // 漸層背景 - 銀色金屬質感
     const gradient = ctx.createLinearGradient(0, 0, width, height);
     gradient.addColorStop(0, '#c0c0c0');
     gradient.addColorStop(0.3, '#e8e8e8');
@@ -57,27 +57,16 @@ export default function ScratchCard({
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
     
-    // 添加一些亮片效果
-    for (let i = 0; i < 50; i++) {
+    // 添加亮片效果
+    for (let i = 0; i < 80; i++) {
       const x = Math.random() * width;
       const y = Math.random() * height;
-      const size = Math.random() * 3 + 1;
+      const size = Math.random() * 4 + 1;
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.3})`;
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.6 + 0.2})`;
       ctx.fill();
     }
-    
-    // 刮刮樂文字
-    ctx.font = 'bold 24px "Noto Sans TC", sans-serif';
-    ctx.fillStyle = '#666';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🎰 刮我看答案 🎰', width / 2, height / 2 - 15);
-    
-    ctx.font = '14px "Noto Sans TC", sans-serif';
-    ctx.fillStyle = '#888';
-    ctx.fillText('用滑鼠或手指刮開', width / 2, height / 2 + 20);
   }, []);
 
   // 揭曉卡片
@@ -192,6 +181,8 @@ export default function ScratchCard({
 
   // 重新開始
   const handleReset = () => {
+    setIsScratching(false);
+    lastPosRef.current = { x: 0, y: 0 };
     initScratchCard();
   };
 
@@ -299,9 +290,10 @@ export default function ScratchCard({
       {/* 刮刮樂卡片 */}
       <div 
         ref={containerRef}
-        className="relative w-full max-w-sm aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl border-4 border-amber-400"
+        className="relative w-full max-w-md aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl border-4 border-amber-400/80"
         style={{
-          background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)',
+          background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)',
+          boxShadow: '0 25px 50px -12px rgba(251, 191, 36, 0.4), 0 0 0 1px rgba(251, 191, 36, 0.1)',
         }}
       >
         {/* 底層內容 (餐廳資訊) - 簡化版，只顯示名稱 */}

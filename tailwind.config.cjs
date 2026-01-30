@@ -31,13 +31,23 @@ module.exports = {
       },
       animation: {
         'float': 'float 3s ease-in-out infinite',
+        'pop-in-left': 'popInLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'pop-in-right': 'popInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) both',
       },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        popInLeft: {
+          '0%': { transform: 'translate3d(-300px, 0, 0)', opacity: '0' },
+          '100%': { transform: 'translate3d(0, 0, 0)', opacity: '1' },
+        },
+        popInRight: {
+          '0%': { transform: 'translate3d(300px, 0, 0)', opacity: '0' },
+          '100%': { transform: 'translate3d(0, 0, 0)', opacity: '1' },
         }
-      }
+      },
     },
   },
   plugins: [],
