@@ -8,7 +8,7 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-brand-50 flex items-center justify-center p-4">
       <div className="max-w-6xl w-full">
         {/* 主標題 */}
         <div className="text-center mb-12">
@@ -31,26 +31,26 @@ export default function HomePage() {
             className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 border-2 border-transparent hover:border-amber-500 transform hover:scale-105"
           >
             <div className="absolute top-0 right-0 -mt-4 -mr-4">
-              <div className="bg-amber-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-md">
+              <div className="bg-brand-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-md shadow-brand-500/30">
                 點餐系統
               </div>
             </div>
             
             <div className="flex flex-col items-center text-center">
               {/* 阿嬌照片 */}
-              <div className="w-32 h-32 mb-4 rounded-full overflow-hidden shadow-lg ring-4 ring-amber-100 group-hover:ring-amber-200 transition-all">
+              <div className="w-32 h-32 mb-4 rounded-full overflow-hidden shadow-lg ring-4 ring-brand-100 group-hover:ring-brand-200 transition-all duration-300">
                 <img 
                   src={ajiaoImage} 
                   alt="阿嬌滷味老闆娘" 
-                  className="w-full h-full object-cover object-top"
+                  className="w-full h-full object-cover object-top hover:scale-110 transition-transform duration-500"
                 />
               </div>
               
-              <h2 className="text-2xl font-bold text-gray-800 mb-3">
+              <h2 className="text-2xl font-bold text-gray-800 mb-3 group-hover:text-brand-600 transition-colors">
                 阿嬌滷味
               </h2>
               
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 mb-4 font-medium">
                 記憶中的好味道，越滷越香
               </p>
               
@@ -69,7 +69,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="mt-6 inline-flex items-center text-amber-600 font-bold group-hover:text-amber-700">
+              <div className="mt-6 inline-flex items-center text-brand-600 font-bold group-hover:text-brand-700">
                 開始點餐
                 <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

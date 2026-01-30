@@ -916,7 +916,7 @@ export default function LuweiOrderingApp() {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50 font-sans pb-24">
+    <div className="min-h-screen bg-brand-50 font-sans pb-24">
       {toast && (
         <Toast 
           message={toast.message} 
@@ -928,37 +928,46 @@ export default function LuweiOrderingApp() {
       {showSubmitModal && <SubmitModal />}
       {showEditModal && <EditOrderModal />}
       
-      <header className="bg-amber-700 text-white p-4 shadow-lg sticky top-0 z-20">
-        <div className="max-w-2xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('menu')}>
-            <div className="bg-white p-1 rounded-full">
-              <ChefHat className="w-5 h-5 text-amber-700" />
+      <header className="glass-header">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center transition-all duration-300">
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView('menu')}>
+            <div className="bg-brand-500 p-2 rounded-xl shadow-lg shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
+              <ChefHat className="w-6 h-6 text-white" />
             </div>
-            <h1 className="font-bold text-lg">阿嬌滷味</h1>
+            <div>
+              <h1 className="font-bold text-xl text-gray-800 tracking-tight">阿嬌滷味</h1>
+              <p className="text-xs text-gray-500 font-medium">越滷越香的好滋味</p>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm opacity-90 hidden sm:inline">Hi, {username}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600 hidden sm:inline bg-gray-100 px-3 py-1 rounded-full">
+              👋 Hi, {username}
+            </span>
             <button 
               onClick={() => navigate('/')}
-              className="p-2 hover:bg-amber-600 rounded-full transition"
+              className="p-2.5 text-gray-500 hover:bg-gray-100 hover:text-brand-600 rounded-full transition-all duration-200 active:scale-95"
               title="返回首頁"
             >
-              <Home className="w-6 h-6" />
+              <Home className="w-5 h-5" />
             </button>
             <button 
               onClick={() => setView(view === 'history' ? 'menu' : 'history')}
-              className="p-2 hover:bg-amber-600 rounded-full transition relative"
+              className={`p-2.5 rounded-full transition-all duration-300 relative active:scale-95 ${
+                view === 'history' 
+                  ? 'bg-brand-100 text-brand-600' 
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-brand-600'
+              }`}
             >
-              {view === 'history' ? <Utensils className="w-6 h-6" /> : <History className="w-6 h-6" />}
+              {view === 'history' ? <Utensils className="w-5 h-5" /> : <History className="w-5 h-5" />}
               {view !== 'history' && historyOrders.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white animate-pulse"></span>
               )}
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto p-4">
+      <main className="max-w-4xl mx-auto p-4">
         {isRandomizing && (
           <div className="fixed inset-0 bg-black/70 z-50 flex flex-col items-center justify-center text-white backdrop-blur-sm">
             <Loader2 className="w-16 h-16 animate-spin text-amber-500 mb-4" />
@@ -1067,20 +1076,23 @@ export default function LuweiOrderingApp() {
               <p className="text-xs text-orange-100 mt-2 opacity-80">* 系統會自動幫您湊到接近金額，滿 ${FREE_NOODLE_THRESHOLD} 可選贈送主食！</p>
             </div>
 
-            <div className="flex space-x-2 overflow-x-auto whitespace-nowrap pb-3 -mx-4 px-4 sticky top-[72px] bg-amber-50 z-10 border-b border-amber-200">
-              {MENU_CATEGORIES.map(category => (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`px-4 py-2 rounded-full font-bold text-sm transition shrink-0 ${
-                    selectedCategory === category.id
-                      ? 'bg-amber-700 text-white shadow-md'
-                      : 'bg-white text-gray-600 hover:bg-amber-100'
-                  }`}
-                >
-                  {category.name}
-                </button>
-              ))}
+            {/* Category Tabs */}
+            <div className="sticky top-[73px] bg-brand-50/95 backdrop-blur-sm z-10 py-2 -mx-4 px-4 border-b border-gray-200/50 mb-4 transition-all">
+              <div className="flex space-x-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
+                {MENU_CATEGORIES.map(category => (
+                  <button
+                    key={category.id}
+                    onClick={() => setSelectedCategory(category.id)}
+                    className={`px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-300 transform active:scale-95 shrink-0 ${
+                      selectedCategory === category.id
+                        ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30 ring-2 ring-brand-200 ring-offset-1'
+                        : 'bg-white text-gray-500 hover:bg-white hover:text-brand-600 shadow-sm border border-transparent hover:border-brand-200'
+                    }`}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* 浮動購物車（桌面版左上角） */}
@@ -1128,36 +1140,53 @@ export default function LuweiOrderingApp() {
             )}
 
             {/* 菜單項目 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 pb-20">
+            {/* 菜單項目 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-24">
               {filteredMenu.map(item => (
-                <div key={item.id} className={`bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex justify-between items-center transition ${cart[item.id] ? 'ring-2 ring-amber-500 bg-amber-50' : ''}`}>
+                <div 
+                  key={item.id} 
+                  className={`card p-4 flex justify-between items-center group cursor-pointer select-none transition-all duration-300 ${
+                    cart[item.id] ? 'ring-2 ring-brand-500 bg-orange-50/50' : 'hover:border-brand-200'
+                  }`}
+                  onClick={() => addToCart(item.id)}
+                >
                   <div>
-                    <span className="text-xs text-amber-600 font-bold bg-amber-100 px-2 py-0.5 rounded-full mb-1 inline-block">
-                      {MENU_CATEGORIES.find(c => c.id === item.category)?.name || item.category}
-                    </span>
-                    <h3 className="font-bold text-gray-800 text-lg">{item.name}</h3>
-                    <p className="text-gray-500 font-medium">${item.price}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold tracking-wider text-brand-600 bg-brand-100 px-2 py-0.5 rounded-full uppercase">
+                        {MENU_CATEGORIES.find(c => c.id === item.category)?.name || item.category}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-gray-800 text-lg group-hover:text-brand-700 transition-colors">
+                      {item.name}
+                    </h3>
+                    <p className="text-gray-500 font-medium mt-0.5">${item.price}</p>
                   </div>
                   
-                  <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
+                  <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                     {cart[item.id] > 0 && (
                       <button 
                         onClick={() => removeFromCart(item.id)}
-                        className="w-8 h-8 rounded-full bg-white text-gray-600 border border-gray-200 flex items-center justify-center hover:bg-gray-100 active:scale-90 transition font-bold text-lg"
+                        className="w-8 h-8 rounded-full bg-white text-gray-400 border border-gray-200 flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 active:scale-90 transition-all font-bold text-lg shadow-sm"
                       >
                         -
                       </button>
                     )}
                     
-                    <span className={`w-6 text-center font-bold ${cart[item.id] > 0 ? 'text-amber-700' : 'text-gray-300'}`}>
+                    <span className={`w-6 text-center font-bold text-lg transition-all ${
+                      cart[item.id] > 0 ? 'text-brand-600 scale-110' : 'text-gray-300 opacity-0 w-0 overflow-hidden'
+                    }`}>
                       {cart[item.id] || 0}
                     </span>
 
                     <button 
                       onClick={() => addToCart(item.id)}
-                      className="w-8 h-8 rounded-full bg-amber-500 text-white shadow-sm flex items-center justify-center hover:bg-amber-600 active:scale-90 transition font-bold text-lg"
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-md active:scale-90 ${
+                        cart[item.id] > 0 
+                          ? 'bg-brand-500 text-white shadow-brand-500/30 hover:bg-brand-600' 
+                          : 'bg-white text-brand-500 border border-brand-100 hover:bg-brand-50'
+                      }`}
                     >
-                      +
+                      <span className="text-xl font-bold mb-0.5">+</span>
                     </button>
                   </div>
                 </div>
@@ -1176,38 +1205,38 @@ export default function LuweiOrderingApp() {
       )}
 
       {view === 'menu' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4 z-20 border-t border-gray-100">
-          <div className="max-w-2xl mx-auto">
+        <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)] p-4 z-40 border-t border-gray-100 animate-in slide-in-from-bottom-2">
+          <div className="max-w-4xl mx-auto">
             <div className="mb-3 text-center">
               {isFreeNoodleEligible ? (
-                <div className="inline-flex items-center gap-2 text-green-600 font-bold text-sm bg-green-50 px-3 py-1 rounded-full animate-pulse">
+                <div className="inline-flex items-center gap-2 text-green-700 font-bold text-sm bg-green-100/80 backdrop-blur px-4 py-1.5 rounded-full animate-pulse shadow-sm">
                   <CheckCircle className="w-4 h-4" />
                   金額達標！可選擇贈送主食！
                 </div>
               ) : (
-                <div className="text-gray-500 text-sm">
-                  再買 <span className="text-red-500 font-bold">${Math.max(0, FREE_NOODLE_THRESHOLD - currentTotal)}</span> 元，就可選贈送主食囉！
+                <div className="text-gray-500 text-sm font-medium">
+                  再買 <span className="text-brand-600 text-base font-bold">${Math.max(0, FREE_NOODLE_THRESHOLD - currentTotal)}</span> 元，就可選贈送主食囉！
                 </div>
               )}
             </div>
 
             <div className="flex justify-between items-center gap-4">
-              <div>
-                <p className="text-gray-500 text-xs">目前總計</p>
-                <p className="text-2xl font-bold text-gray-900">${currentTotal}</p>
+              <div className="pl-2">
+                <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Total</p>
+                <p className="text-3xl font-bold text-gray-900 font-sans tracking-tight">${currentTotal}</p>
               </div>
               
               <button
                 onClick={handleShowModal}
                 disabled={currentTotal === 0}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-lg transition shadow-lg ${
+                className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-lg transition-all duration-300 shadow-lg ${
                   currentTotal > 0 
-                    ? 'bg-amber-600 text-white hover:bg-amber-700 active:scale-95' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'btn-primary translate-y-0 opacity-100' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed translate-y-1 opacity-80'
                 }`}
               >
                 <ShoppingCart className="w-5 h-5" />
-                {currentTotal > 0 ? '送出訂單與選項' : '請先點餐'}
+                {currentTotal > 0 ? '去結帳' : '請先點餐'}
               </button>
             </div>
           </div>
